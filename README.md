@@ -24,6 +24,30 @@ npm run preview
 
 预览地址 http://127.0.0.1:4173 。`dist` 可以作为静态站点部署；线上需要 HTTPS，本地使用 localhost。
 
+## Arch Linux 桌面端
+
+项目的交付形态是 Electron 桌面应用，不需要运行 Vite 开发服务器。Arch Linux 上先安装构建与运行依赖：
+
+```sh
+sudo pacman -S nodejs npm electron
+npm install
+```
+
+直接启动桌面窗口：
+
+```sh
+npm run desktop
+```
+
+生成 Arch 安装包：
+
+```sh
+npm run package:arch
+sudo pacman -U ./softie-desktop-1.0.0-1-x86_64.pkg.tar.zst
+```
+
+安装包运行时只依赖系统 `electron`，加载本地构建的 `dist`，不启动开发服务器；桌面壳仍只使用原生 WebGPU，不提供 WebGL 回退。
+
 ## 玩法
 
 - 在史莱姆上按住：局部凹陷；拖动：拎起、拉伸与横向揉捏。
@@ -44,7 +68,7 @@ npm run preview
 - 身体与五官的每个顶点使用同一个连续变形场；五官不以刚体跟随。
 - 表情先在局部空间插值并重新贴合表面，再进入同一物理变形场；单一状态控制器协调表情优先级，没有竞争的定时器。
 - 凝胶使用实体 transmission、折射、吸收色和 clearcoat。工作室环境贴图在启动时用 WebGPU PMREM 烘焙。
-- 116 个实例化气泡；无实时阴影贴图和全屏后处理。DPR 上限 2，持续低帧率时逐级降至 1。
+- 116 个实例化气泡；无实时阴影贴图和全屏后处理。DPR 范围 1–1.5，持续低帧率时逐级降至 1。
 - FPS 是实际渲染帧统计，不是预置数字。最新浏览器检查、硬件信息、实际渲染性能和截图路径记录在 `artifacts/test-results.json`；此前的设计验证记录见 `artifacts/qa-report.md`。
 
 ## 验证与设计证据

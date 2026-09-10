@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Softie
+Name[zh_CN]=软乎乎
+Comment=A native WebGPU soft-body toy
+Comment[zh_CN]=原生 WebGPU 软体小玩具
+Exec=softie
+Icon=softie
+Terminal=false
+Type=Application
+Categories=Game;
+StartupNotify=true
+StartupWMClass=softie

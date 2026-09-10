@@ -78,7 +78,7 @@ async function start() {
   const syncMotionPreference = () => { slime.faceMotion.reducedMotion = reducedMotion.matches; };
   syncMotionPreference();
   reducedMotion.addEventListener('change', syncMotionPreference);
-  let dpr = Math.min(devicePixelRatio, 2);
+  let dpr = Math.min(Math.max(devicePixelRatio, 1), 1.5);
   const resize = () => {
     const rect = stage.getBoundingClientRect();
     const { width, height } = rect;

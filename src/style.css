@@ -714,14 +714,22 @@ input[type="range"]::-moz-range-thumb {
   bottom: 4.2%;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 24px;
   color: var(--muted);
 }
 .page-footer p {
   margin: 0;
 }
 .renderer-status {
-  display: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 .status-dot {
   width: 9px;
@@ -745,11 +753,13 @@ input[type="range"]::-moz-range-thumb {
 }
 .interaction-hint {
   position: absolute;
-  left: var(--gutter);
+  left: 50%;
   bottom: 4.2%;
   display: flex;
   align-items: center;
   gap: 16px;
+  margin: 0;
+  transform: translateX(-50%);
   font-size: clamp(14px, 1.25vw, 19px);
   line-height: 1.5;
   white-space: nowrap;
@@ -759,6 +769,7 @@ input[type="range"]::-moz-range-thumb {
   color: #969991;
 }
 .footer-note {
+  margin: 0;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -773,6 +784,7 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   border: 0;
 }
+
 @media (max-height: 850px) and (min-width: 900px) {
   .settings-heading p {
     margin-bottom: 17px;
@@ -1027,10 +1039,12 @@ input[type="range"]::-moz-range-thumb {
   }
   .interaction-hint {
     position: static;
+    left: auto;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: none;
     font-size: 13px;
     line-height: 1.5;
     gap: 12px;
@@ -1109,16 +1123,31 @@ input[type="range"]::-moz-range-thumb {
   .page-footer {
     position: static;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
     margin-top: 24px;
     padding-left: var(--pad-left);
     padding-right: var(--pad-right);
     padding-bottom: max(16px, env(safe-area-inset-bottom));
     box-sizing: border-box;
   }
+  .renderer-status {
+    gap: 5px;
+    font-size: 11px;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+  }
+  #fps {
+    width: 6ch;
+    font-size: 10px;
+  }
   .footer-note {
     font-size: 12px;
   }
+
 }
 @media (max-width: 380px) {
   .swatches {
