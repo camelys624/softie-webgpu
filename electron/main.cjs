@@ -18,6 +18,8 @@ if (process.platform === 'linux') {
 }
 
 let mainWindow = null;
+let settingsWindow = null;
+let latestMenuPayload = null;
 let tray = null;
 let petMenu = null;
 let cursorTimer = null;
@@ -28,6 +30,10 @@ let petSize = 'medium';
 
 function owns(event) {
   return mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents;
+}
+
+function ownsSettings(event) {
+  return settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents;
 }
 
 function send(channel, payload) {
@@ -48,17 +54,71 @@ function sanitizeMenu(items) {
       checked: Boolean(item.checked),
     };
     if (Array.isArray(item.submenu)) entry.submenu = sanitizeMenu(item.submenu);
-    if (id) entry.click = () => send('softie:command', { id });
+    if (id) entry.click = () => { if (id === 'settings') openSettings(); else send('softie:command', { id }); };
     return entry;
   }).filter(Boolean);
 }
 
 function installMenu(payload) {
-  const template = sanitizeMenu(payload?.template);
-  if (!template.length) return;
-  petMenu = Menu.buildFromTemplate(template);
-  tray?.setContextMenu(petMenu);
+  if (!Array.isArray(payload?.template)) return;
+  latestMenuPayload = payload;
+  const quickIds = new Set(['settings', 'poke', 'reset', 'quit']);
+  const quickItems = payload.template.filter(item => quickIds.has(item?.id));
+  if (quickItems.length) {
+    const quitIndex = quickItems.findIndex(item => item.id === 'quit');
+    if (quitIndex > 0) quickItems.splice(quitIndex, 0, { type: 'separator' });
+    petMenu = Menu.buildFromTemplate(sanitizeMenu(quickItems));
+    tray?.setContextMenu(petMenu);
+  }
   if (typeof payload.tooltip === 'string') tray?.setToolTip(payload.tooltip.slice(0, 120));
+  sendSettingsState();
+}
+
+function sendSettingsState() {
+  if (latestMenuPayload && settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('softie:settings-state', latestMenuPayload);
+  }
+}
+
+function menuContainsId(items, id) {
+  return Array.isArray(items) && items.some(item => item?.id === id || menuContainsId(item?.submenu, id));
+}
+
+function openSettings() {
+  showPet();
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    sendSettingsState();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 390,
+    height: 720,
+    minWidth: 340,
+    minHeight: 520,
+    maxWidth: 520,
+    backgroundColor: '#f5f5f3',
+    autoHideMenuBar: true,
+    show: false,
+    title: 'Softie Settings',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  settingsWindow.on('page-title-updated', event => event.preventDefault());
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+    sendSettingsState();
+  });
+  settingsWindow.on('closed', () => { settingsWindow = null; });
+  settingsWindow.loadFile(path.join(__dirname, 'settings.html')).catch(error => {
+    console.error('[softie] settings startup:', error);
+    settingsWindow?.close();
+  });
 }
 
 function preferredPetBounds() {
@@ -84,7 +144,9 @@ async function hyprlandClient() {
   try {
     const { stdout } = await execFileAsync('hyprctl', ['-j', 'clients'], { timeout: 1000 });
     const clients = JSON.parse(stdout);
-    return clients.find(client => client.pid === process.pid || client.class === 'softie-pet' || client.title === 'softie-pet') || null;
+    return clients.find(client => client.title === 'softie-pet' || client.initialTitle === 'softie-pet')
+      || clients.find(client => client.pid === process.pid)
+      || null;
   } catch {
     return null;
   }
@@ -190,6 +252,9 @@ function createWindow() {
       sandbox: true,
     },
   });
+  mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    console.error('[softie] preload error:', preloadPath, error);
+  });
 
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -214,6 +279,14 @@ ipcMain.on('softie:drag', (event, payload) => {
   if (dragRequested) void beginDrag(); else drag = null;
 });
 ipcMain.on('softie:ready', event => { if (owns(event)) showPet(); });
+ipcMain.on('softie:open-settings', event => { if (owns(event)) openSettings(); });
+ipcMain.on('softie:settings-ready', event => { if (ownsSettings(event)) sendSettingsState(); });
+ipcMain.on('softie:settings-command', (event, payload) => {
+  if (!ownsSettings(event)) return;
+  const id = typeof payload?.id === 'string' ? payload.id.slice(0, 80) : '';
+  if (id !== 'settings' && menuContainsId(latestMenuPayload?.template, id)) send('softie:command', { id });
+});
+ipcMain.on('softie:settings-close', event => { if (ownsSettings(event)) settingsWindow.close(); });
 
 app.whenReady().then(() => {
   tray = new Tray(path.join(__dirname, 'tray.png'));

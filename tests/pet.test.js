@@ -61,6 +61,7 @@ test('pet menu reflects state and controller routes native commands', () => {
 
     const sizes = [];
     const controller = createPetController({ desktop, ui, size: 'medium', onSize: value => sizes.push(value) });
+    assert.equal(controller.run('settings'), true);
     assert.equal(controller.run('poke'), true);
     assert.equal(controller.run('color:grape'), true);
     assert.equal(controller.run('accessory:coffee'), true);

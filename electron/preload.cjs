@@ -4,11 +4,15 @@ const SEND_CHANNELS = new Set([
   'softie:context-menu',
   'softie:drag',
   'softie:menu',
+  'softie:open-settings',
   'softie:quit',
   'softie:ready',
   'softie:resize',
+  'softie:settings-close',
+  'softie:settings-command',
+  'softie:settings-ready',
 ]);
-const RECEIVE_CHANNELS = new Set(['softie:command', 'softie:cursor']);
+const RECEIVE_CHANNELS = new Set(['softie:command', 'softie:cursor', 'softie:settings-state']);
 
 contextBridge.exposeInMainWorld('softieDesktop', Object.freeze({
   hyprland: /hyprland/i.test(process.env.XDG_CURRENT_DESKTOP || ''),

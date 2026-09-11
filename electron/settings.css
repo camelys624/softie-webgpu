@@ -1,0 +1,85 @@
+:root {
+  color: #171817;
+  background: #f5f5f3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; margin: 0; }
+body { padding: 24px; }
+button { font: inherit; }
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  color: #8a8d87;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+h1 { margin: 0; font-size: 28px; line-height: 1.1; }
+.close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: #666963;
+  background: #e8e9e5;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.close:hover { color: #171817; background: #dedfda; }
+section {
+  padding: 16px 0;
+  border-top: 1px solid #dcddd8;
+}
+section:first-child { border-top: 0; padding-top: 0; }
+h2 {
+  margin: 0 0 10px;
+  color: #686b65;
+  font-size: 13px;
+  font-weight: 650;
+}
+.choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.choice,
+.action {
+  min-height: 42px;
+  border: 1px solid #d4d6d0;
+  border-radius: 12px;
+  color: #343632;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.choice:hover,
+.action:hover { border-color: #8d9089; transform: translateY(-1px); }
+.choice[aria-pressed="true"] {
+  border-color: #171817;
+  color: #fff;
+  background: #171817;
+}
+.toggle-row .choice { width: 100%; }
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 18px;
+}
+.action { font-weight: 650; }
+.loading { color: #777975; font-size: 14px; }
+button:focus-visible { outline: 2px solid #f17fa9; outline-offset: 2px; }
+@media (max-height: 620px) {
+  body { padding: 18px 22px; }
+  section { padding: 11px 0; }
+  .choice, .action { min-height: 36px; }
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>Softie Settings</title>
+  <link rel="stylesheet" href="settings.css">
+  <script src="settings.js" defer></script>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">softie</p>
+      <h1 id="settings-title">设置</h1>
+    </div>
+    <button id="close" class="close" type="button" aria-label="关闭">×</button>
+  </header>
+  <main id="settings-content" aria-live="polite">
+    <p class="loading">正在读取设置…</p>
+  </main>
+</body>
+</html>

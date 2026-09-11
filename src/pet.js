@@ -54,6 +54,8 @@ export function buildPetMenu(state, t) {
   const colors = COLOR_PRESETS.map(([name]) => radio(`color:${name}`, t(name), state.colorName === name));
   if (state.colorName === 'custom') colors.push(radio('color:custom', t('custom'), true));
   return [
+    { id: 'settings', label: t('settings') },
+    { type: 'separator' },
     { id: 'poke', label: t('poke') },
     { id: 'reset', label: t('reset') },
     { type: 'separator' },
@@ -74,11 +76,15 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
   let level = PET_SIZES[size] ? size : 'medium';
   const cursorListeners = new Set();
   const state = () => ({ ...ui.state, size: level });
-  const publish = () => desktop?.send('softie:menu', { template: buildPetMenu(state(), ui.t), tooltip: ui.t('title') });
+  const publish = () => {
+    const current = state();
+    desktop?.send('softie:menu', { template: buildPetMenu(current, ui.t), state: current, tooltip: ui.t('title') });
+  };
 
   function run(id) {
     const [kind, value] = String(id).split(':');
-    if (id === 'poke') ui.poke();
+    if (id === 'settings') desktop?.send('softie:open-settings');
+    else if (id === 'poke') ui.poke();
     else if (id === 'reset') ui.reset();
     else if (id === 'sound') ui.toggleSound();
     else if (id === 'quit') desktop?.send('softie:quit');
@@ -129,7 +135,11 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
     desktop.send('softie:context-menu');
   });
   window.addEventListener('keydown', event => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'q') {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    if (event.key === ',') {
+      event.preventDefault();
+      desktop?.send('softie:open-settings');
+    } else if (event.key.toLowerCase() === 'q') {
       event.preventDefault();
       desktop?.send('softie:quit');
     }
