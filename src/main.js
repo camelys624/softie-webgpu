@@ -457,6 +457,11 @@ async function start() {
     if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
     ui.setInteraction('idle');
   };
+  if (petMode) {
+    window.addEventListener('softie:window-drag-start', () => {
+      if (pointerId !== null) release();
+    });
+  }
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
   canvas.addEventListener('lostpointercapture', release);

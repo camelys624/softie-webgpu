@@ -79,3 +79,81 @@ test('pet menu reflects state and controller routes native commands', () => {
     globalThis.window = originalWindow;
   }
 });
+test('desktop pet exposes settings and moves the native window after a drag threshold', () => {
+  const sent = [];
+  const windowListeners = new Map();
+  const windowEvents = [];
+  const makeElement = () => {
+    const listeners = new Map();
+    return {
+      hidden: true,
+      classList: {
+        values: new Set(),
+        add(value) { this.values.add(value); },
+        remove(value) { this.values.delete(value); },
+      },
+      addEventListener(type, listener) {
+        const entries = listeners.get(type) ?? [];
+        entries.push(listener);
+        listeners.set(type, entries);
+      },
+      emit(type, event) {
+        for (const listener of listeners.get(type) ?? []) listener(event);
+      },
+      contains(target) { return target === this; },
+      setPointerCapture() {},
+    };
+  };
+  const stage = makeElement();
+  const handle = makeElement();
+  const settings = makeElement();
+  const fakeWindow = {
+    addEventListener(type, listener) {
+      const entries = windowListeners.get(type) ?? [];
+      entries.push(listener);
+      windowListeners.set(type, entries);
+    },
+    dispatchEvent(event) {
+      windowEvents.push(event.type);
+      for (const listener of windowListeners.get(event.type) ?? []) listener(event);
+      return true;
+    },
+    emit(type, event) {
+      for (const listener of windowListeners.get(type) ?? []) listener(event);
+    },
+  };
+  const desktop = {
+    send: (channel, payload) => sent.push({ channel, payload }),
+    on: () => {},
+  };
+  const ui = {
+    state: { colorName: 'strawberry', accessory: 'none', stiffness: 35, damping: 45, soundEnabled: true, language: 'zh' },
+    t: key => key,
+    poke: () => {}, reset: () => {}, toggleSound: () => {}, pickColor: () => {}, pickAccessory: () => {},
+    setParameter: () => {}, setLanguage: () => {},
+  };
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalEvent = globalThis.Event;
+  globalThis.document = { querySelector: selector => ({ '#stage': stage, '#pet-handle': handle, '#pet-settings': settings }[selector] ?? null) };
+  globalThis.window = fakeWindow;
+  globalThis.Event = class { constructor(type) { this.type = type; } };
+  try {
+    createPetController({ desktop, ui });
+    assert.equal(handle.hidden, false);
+    assert.equal(settings.hidden, false);
+
+    stage.emit('pointerdown', { button: 0, pointerType: 'mouse', pointerId: 7, clientX: 100, clientY: 100, target: stage });
+    fakeWindow.emit('pointermove', { pointerId: 7, clientX: 115, clientY: 100, preventDefault() {} });
+    fakeWindow.emit('pointerup', { pointerId: 7 });
+    settings.emit('click', { stopPropagation() {} });
+
+    assert.deepEqual(sent.filter(message => message.channel === 'softie:drag').map(message => message.payload.active), [true, false]);
+    assert.ok(windowEvents.includes('softie:window-drag-start'));
+    assert.ok(sent.some(message => message.channel === 'softie:open-settings'));
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.Event = originalEvent;
+  }
+});

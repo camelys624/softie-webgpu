@@ -102,33 +102,60 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
   desktop?.on('softie:cursor', point => { for (const listener of cursorListeners) listener(point); });
 
   const handle = document.querySelector('#pet-handle');
-  if (handle && desktop) {
-    handle.hidden = false;
-    if (desktop.hyprland) {
-      // Hyprland moves the window for us from the global cursor; the page only reports the gesture.
-      let dragPointer = null;
-      const end = () => {
-        if (dragPointer === null) return;
-        dragPointer = null;
-        handle.classList.remove('is-dragging');
-        desktop.send('softie:drag', { active: false });
-      };
-      handle.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || dragPointer !== null) return;
-        dragPointer = event.pointerId;
-        handle.setPointerCapture(event.pointerId);
-        desktop.send('softie:drag', { active: true });
-        handle.classList.add('is-dragging');
-        event.preventDefault();
-      });
-      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) handle.addEventListener(type, end);
-      window.addEventListener('blur', end);
-    } else {
-      // Elsewhere let Chromium ask the window system for an interactive move.
-      handle.style.setProperty('-webkit-app-region', 'drag');
-      handle.style.setProperty('app-region', 'drag');
-    }
+  if (handle && desktop) handle.hidden = false;
+  const settingsButton = document.querySelector('#pet-settings');
+  if (settingsButton && desktop) {
+    settingsButton.hidden = false;
+    settingsButton.addEventListener('click', event => {
+      event.stopPropagation();
+      desktop.send('softie:open-settings');
+    });
   }
+
+  const stage = document.querySelector('#stage');
+  if (stage && desktop) {
+    let dragPointer = null;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    const endDrag = event => {
+      if (dragPointer === null || (event?.pointerId !== undefined && event.pointerId !== dragPointer)) return;
+      if (dragging) desktop.send('softie:drag', { active: false });
+      dragPointer = null;
+      dragging = false;
+      handle?.classList.remove('is-dragging');
+    };
+    const startDrag = event => {
+      if (
+        dragPointer !== null
+        || event.button !== 0
+        || !['mouse', 'pen'].includes(event.pointerType)
+        || settingsButton?.contains(event.target)
+      ) return;
+      dragPointer = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      dragging = false;
+      event.target?.setPointerCapture?.(event.pointerId);
+    };
+    const moveDrag = event => {
+      if (dragPointer !== event.pointerId) return;
+      if (!dragging) {
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
+        dragging = true;
+        window.dispatchEvent(new Event('softie:window-drag-start'));
+        desktop.send('softie:drag', { active: true });
+        handle?.classList.add('is-dragging');
+      }
+      event.preventDefault();
+    };
+    stage.addEventListener('pointerdown', startDrag, true);
+    window.addEventListener('pointermove', moveDrag, true);
+    window.addEventListener('pointerup', endDrag, true);
+    window.addEventListener('pointercancel', endDrag, true);
+    window.addEventListener('blur', endDrag);
+  }
+
   window.addEventListener('contextmenu', event => {
     if (!desktop) return;
     event.preventDefault();

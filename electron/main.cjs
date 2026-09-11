@@ -5,6 +5,8 @@ const { promisify } = require('node:util');
 
 const execFileAsync = promisify(execFile);
 const IS_HYPRLAND = /hyprland/i.test(process.env.XDG_CURRENT_DESKTOP || '');
+const IS_WINDOWS_HOST = process.platform === 'win32'
+  || Boolean(process.env.WSL_INTEROP || process.env.WSL_DISTRO_NAME);
 const PET_SIZES = {
   small: { width: 255, height: 225 },
   medium: { width: 340, height: 300 },
@@ -27,6 +29,7 @@ let drag = null;
 let dragRequested = false;
 let movePending = false;
 let petSize = 'medium';
+let petPlaced = false;
 
 function owns(event) {
   return mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents;
@@ -125,8 +128,8 @@ function preferredPetBounds() {
   const { width, height } = PET_SIZES[petSize];
   const area = screen.getPrimaryDisplay().workArea;
   const margin = 24;
-  // Follow each desktop's status-area convention: Linux/macOS at the top, Windows at the bottom.
-  const y = process.platform === 'win32'
+  // Windows and WSLg keep desktop pets above the taskbar; Linux/macOS use the top corner.
+  const y = IS_WINDOWS_HOST
     ? area.y + area.height - height - margin
     : area.y + margin;
   return { x: area.x + area.width - width - margin, y, width, height };
@@ -223,7 +226,8 @@ function resizePet(level) {
 
 function showPet() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const bounds = placeNearDesktopCorner();
+  const bounds = petPlaced ? mainWindow.getBounds() : placeNearDesktopCorner();
+  petPlaced = true;
   mainWindow.showInactive();
   if (IS_HYPRLAND) setTimeout(() => { void placeHyprlandWindow(bounds); }, 150);
 }
@@ -258,9 +262,12 @@ function createWindow() {
 
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  mainWindow.on('page-title-updated', event => event.preventDefault());
-  mainWindow.once('ready-to-show', showPet);
-  mainWindow.on('closed', () => { mainWindow = null; drag = null; dragRequested = false; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    drag = null;
+    dragRequested = false;
+    petPlaced = false;
+  });
 
   const entry = path.join(__dirname, '..', 'dist', 'index.html');
   mainWindow.loadFile(entry, { query: { pet: '1', size: petSize } }).catch(error => {
@@ -288,13 +295,22 @@ ipcMain.on('softie:settings-command', (event, payload) => {
 });
 ipcMain.on('softie:settings-close', event => { if (ownsSettings(event)) settingsWindow.close(); });
 
+function createTray() {
+  try {
+    tray = new Tray(path.join(__dirname, 'tray.png'));
+    tray.setToolTip('Softie · 软乎乎');
+    tray.on('click', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+      else showPet();
+    });
+  } catch (error) {
+    tray = null;
+    console.error('[softie] tray startup:', error);
+  }
+}
+
 app.whenReady().then(() => {
-  tray = new Tray(path.join(__dirname, 'tray.png'));
-  tray.setToolTip('Softie · 软乎乎');
-  tray.on('click', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) createWindow();
-    else showPet();
-  });
+  createTray();
   createWindow();
   cursorTimer = setInterval(() => {
     const point = screen.getCursorScreenPoint();
