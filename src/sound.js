@@ -571,6 +571,142 @@ class SoundFX {
   }
 
   /**
+   * Angry land: Heavy, punchy, vibrating impact with deep growl and resonant sub-bass
+   */
+  playAngryLand(impact = 1) {
+    if (!this.enabled) return;
+    const ctx = this.init();
+    if (!ctx) return;
+    this.resume();
+
+    const now = ctx.currentTime;
+    if (this._lastLandTime && now - this._lastLandTime < 0.08) return;
+    this._lastLandTime = now;
+
+    const normalizedImpact = Math.min(Math.max((impact - 0.5) / 2.5, 0.3), 1.5);
+
+    // 1. Deep aggressive sub thud
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const startFreq = 125 + normalizedImpact * 20;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(32, now + 0.16);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(Math.min(0.92, 0.45 + normalizedImpact * 0.35), now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+    osc.connect(gain);
+    gain.connect(this.filter);
+    osc.start(now);
+    osc.stop(now + 0.29);
+
+    // 2. Grumpy rumble (descending saw/square harmonic)
+    const rumble = ctx.createOscillator();
+    const rumbleGain = ctx.createGain();
+    rumble.type = 'sawtooth';
+    rumble.frequency.setValueAtTime(86, now);
+    rumble.frequency.linearRampToValueAtTime(42, now + 0.22);
+
+    rumbleGain.gain.setValueAtTime(0.001, now);
+    rumbleGain.gain.linearRampToValueAtTime(0.24, now + 0.02);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(this.filter);
+    rumble.start(now);
+    rumble.stop(now + 0.23);
+  }
+
+  /**
+   * Angry poke: Grumpy, clipped, descending quack/grumble ("哼！")
+   */
+  playAngryPoke(angerLevel = 0.8) {
+    if (!this.enabled) return;
+    const ctx = this.init();
+    if (!ctx) return;
+    this.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    const baseFreq = 220 + (1 - angerLevel) * 60;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.55, now + 0.12);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.42, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+    osc.connect(gain);
+    gain.connect(this.filter);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  /**
+   * Snore breath: Gentle rhythmic breathing bubble during sleep
+   */
+  playSnore() {
+    if (!this.enabled) return;
+    const ctx = this.init();
+    if (!ctx) return;
+    this.resume();
+
+    const now = ctx.currentTime;
+    if (this._lastSnoreTime && now - this._lastSnoreTime < 1.4) return;
+    this._lastSnoreTime = now;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.linearRampToValueAtTime(145, now + 0.45);
+    osc.frequency.linearRampToValueAtTime(108, now + 0.95);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 0.98);
+
+    osc.connect(gain);
+    gain.connect(this.filter);
+    osc.start(now);
+    osc.stop(now + 1.0);
+  }
+
+  /**
+   * Startle awake: Rapid comic pitch flare ("哇呀！")
+   */
+  playStartle() {
+    if (!this.enabled) return;
+    const ctx = this.init();
+    if (!ctx) return;
+    this.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(680, now + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(320, now + 0.28);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.68, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+
+    osc.connect(gain);
+    gain.connect(this.filter);
+    osc.start(now);
+    osc.stop(now + 0.32);
+  }
+
+  /**
    * Ambient bubble: Cozy floating micro-bubble when idle
    */
   playAmbientBubble() {

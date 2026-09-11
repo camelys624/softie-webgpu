@@ -8,6 +8,7 @@ export const PET_FRAME = { halfWidth: 2.6, top: 4.2, bottom: -0.4 };
 // How far the body centre may travel; small enough that the slime never leaves its window.
 export const PET_BOUNDS = { x: 0.35, y: 0.9, z: 0.3 };
 export const COLOR_PRESETS = [['strawberry', '#f17fa9'], ['mint', '#a5e0cd'], ['grape', '#c8afec']];
+export const ACCESSORY_PRESETS = [['none', 'accNone'], ['badge', 'accBadge'], ['coffee', 'accCoffee'], ['bandaid', 'accBandaid']];
 export const STIFFNESS_PRESETS = [['soft', 15], ['petDefault', 35], ['springy', 75]];
 export const DAMPING_PRESETS = [['wobbly', 15], ['petDefault', 45], ['settled', 85]];
 const SIZE_LABELS = { small: 'petSizeSmall', medium: 'petSizeMedium', large: 'petSizeLarge' };
@@ -57,6 +58,7 @@ export function buildPetMenu(state, t) {
     { id: 'reset', label: t('reset') },
     { type: 'separator' },
     { label: t('color'), submenu: colors },
+    { label: t('accessory'), submenu: ACCESSORY_PRESETS.map(([value, key]) => radio(`accessory:${value}`, t(key), state.accessory === value)) },
     { label: t('stiffness'), submenu: STIFFNESS_PRESETS.map(([key, value]) => radio(`stiffness:${value}`, t(key), state.stiffness === value)) },
     { label: t('damping'), submenu: DAMPING_PRESETS.map(([key, value]) => radio(`damping:${value}`, t(key), state.damping === value)) },
     { label: t('petSize'), submenu: Object.keys(PET_SIZES).map(level => radio(`size:${level}`, t(SIZE_LABELS[level]), state.size === level)) },
@@ -81,6 +83,7 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
     else if (id === 'sound') ui.toggleSound();
     else if (id === 'quit') desktop?.send('softie:quit');
     else if (kind === 'color') ui.pickColor(value);
+    else if (kind === 'accessory') ui.pickAccessory(value);
     else if (kind === 'stiffness' || kind === 'damping') ui.setParameter(kind, Number(value));
     else if (kind === 'size' && PET_SIZES[value]) { level = value; onSize?.(value); }
     else if (kind === 'language') ui.setLanguage(value);

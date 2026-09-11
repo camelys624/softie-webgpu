@@ -163,3 +163,81 @@ test('dizzy stars halo activates only during dizzy reaction and animates stably'
   assert.equal(slime.dizzyStars.visible, false, 'hidden after dizzy settles');
   slime.dispose();
 });
+
+test('worker accessories switch visibility and follow soft-body deformation field', () => {
+  const physics = new JellyPhysics();
+  const slime = makeSlime(physics);
+
+  assert.equal(slime.accessory, 'none');
+  assert.equal(slime.accessories.badge.group.visible, false);
+  assert.equal(slime.accessories.darkCircles.group.visible, false);
+  assert.equal(slime.accessories.bandaid.group.visible, false);
+
+  // Switch to badge
+  slime.setAccessory('badge');
+  assert.equal(slime.accessory, 'badge');
+  assert.equal(slime.accessories.badge.group.visible, true);
+  assert.equal(slime.accessories.darkCircles.group.visible, false);
+  assert.equal(slime.accessories.bandaid.group.visible, false);
+
+  // Switch to coffee
+  slime.setAccessory('coffee');
+  assert.equal(slime.accessory, 'coffee');
+  assert.equal(slime.accessories.coffee.group.visible, true);
+  assert.equal(slime.accessories.badge.group.visible, false);
+
+  // Switch to darkCircles (compatibility alias)
+  slime.setAccessory('darkCircles');
+  assert.equal(slime.accessory, 'darkCircles');
+  assert.equal(slime.accessories.badge.group.visible, false);
+  assert.equal(slime.accessories.darkCircles.group.visible, true);
+
+  // Switch to bandaid and deform
+  slime.setAccessory('bandaid');
+  assert.equal(slime.accessory, 'bandaid');
+  assert.equal(slime.accessories.bandaid.group.visible, true);
+
+  physics.beginGrab({ x: -0.3, y: 1.4, z: 1 }, { x: -0.3, y: 1.4, z: 1 });
+  physics.moveGrab({ x: -0.6, y: 2.2, z: 1 });
+  for (let i = 0; i < 30; i++) physics.update(1 / 120);
+  slime.update(0.3);
+
+  for (const mesh of slime.accessories.bandaid.meshes) {
+    const pos = mesh.geometry.attributes.position.array;
+    assert.ok(pos.every(Number.isFinite));
+  }
+
+  // Switch back to none
+  slime.setAccessory('none');
+  assert.equal(slime.accessory, 'none');
+  assert.equal(slime.accessories.bandaid.group.visible, false);
+
+  slime.dispose();
+});
+
+test('3D anger cross pops on right forehead during rage, uses renderOrder 5, and pulses stably', () => {
+  const physics = new JellyPhysics();
+  const slime = makeSlime(physics);
+
+  slime.update(0);
+  assert.equal(slime.angerCross.visible, false, 'hidden when idle');
+  assert.equal(slime.angerCross.renderOrder, 5, 'renderOrder 5 ensures top compositing over gel');
+
+  // Trigger rage
+  slime.faceMotion.react('angry');
+  for (let t = 0.05; t <= 0.4; t += 0.05) slime.update(t);
+
+  assert.equal(slime.angerCross.visible, true, 'visible during rage');
+  assert.ok(slime.angerCross.position.x > 0.25, 'located on right side of forehead');
+  assert.ok(slime.angerCross.position.y > 1.50, 'located well above eye level');
+  assert.ok(slime.angerCross.position.z > 0.80, 'located in front of slime surface');
+  assert.ok(slime.angerCross.scale.x > 0.40, 'scaled up during rage');
+  assert.ok(Number.isFinite(slime.angerCross.rotation.z), 'rotation angle is finite');
+
+  // After rage finishes and anger completely settles
+  slime.faceMotion.calmDown(1.0);
+  for (let t = 0.5; t <= 3.5; t += 0.1) slime.update(t);
+  assert.equal(slime.angerCross.visible, false, 'hidden after rage settles');
+
+  slime.dispose();
+});

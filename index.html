@@ -80,8 +80,10 @@
 
       <section class="intro" aria-labelledby="page-title">
         <div class="intro-text">
-          <h1 id="page-title" data-i18n="heading">软乎乎。</h1>
-          <p data-i18n="intro">捏一捏，把今天放轻松。</p>
+          <div class="title-with-mood">
+            <h1 id="page-title" data-i18n="heading">软乎乎。</h1>
+          </div>
+          <p id="page-intro" data-i18n="intro">捏一捏，把今天放轻松。</p>
         </div>
         <button id="stage-reset" class="stage-reset-btn" type="button" data-action="reset" aria-label="恢复默认" title="恢复默认" data-i18n-title="reset" data-i18n-label="reset">
           <svg class="reset-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -93,9 +95,39 @@
       </section>
 
       <div id="stage" class="stage" data-interaction="idle" aria-busy="true">
+        <div class="stage-controls">
+        <!-- Game-Style Kawaii Rage Meter HUD (打工怨气槽) -->
+        <div id="rage-meter-hud" class="rage-meter-hud" data-mood="chill" aria-label="打工怨气进度条" data-i18n-label="rageMeterLabel" title="打工怨气槽" data-i18n-title="rageTitle">
+          <div class="rage-hud-avatar-wrap">
+            <div id="rage-hud-avatar" class="rage-hud-avatar" data-state="chill" aria-hidden="true">
+              <svg class="rage-avatar-svg" viewBox="0 0 36 36" fill="none">
+                <path class="rage-avatar-body" d="M18 4c-4.4 0-4.7 5.4-7.7 7.4C5.7 14 3.8 18.2 3.8 22.8c0 6.4 5.7 9.5 14.2 9.5s14.2-3.1 14.2-9.5c0-4.6-1.9-8.7-6.5-11.6C22.7 9.4 22.4 4 18 4Z" fill="currentColor" />
+                <circle class="rage-avatar-blush" cx="10" cy="23" r="1.8" fill="#f472b6" opacity="0.65" />
+                <circle class="rage-avatar-blush" cx="26" cy="23" r="1.8" fill="#f472b6" opacity="0.65" />
+                <g class="rage-avatar-eyes">
+                  <circle class="rage-eye rage-eye-left" cx="13" cy="20" r="1.7" fill="#1c1917" />
+                  <circle class="rage-eye rage-eye-right" cx="23" cy="20" r="1.7" fill="#1c1917" />
+                </g>
+                <path class="rage-avatar-mouth" d="M16 23.5q2 2 4 0" stroke="#1c1917" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                <path class="rage-avatar-cross" d="M22 10.5q2-1.5 2 2.5m-3-1q2.5 0 2.5 3m-2.5-3.5q1.5-2 3.5 0" stroke="#ef4444" stroke-width="1.2" stroke-linecap="round" fill="none" />
+              </svg>
+            </div>
+          </div>
+          <div class="rage-hud-track-wrap">
+            <div class="rage-hud-header">
+              <span id="rage-hud-badge" class="rage-hud-badge" data-i18n="rageChill">摸鱼放空中</span>
+              <span id="rage-hud-percent" class="rage-hud-percent">0%</span>
+            </div>
+            <div class="rage-hud-bar-capsule">
+              <canvas class="rage-hud-canvas" width="240" height="32" aria-hidden="true"></canvas>
+              <div class="rage-hud-sparkles" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+        <button id="stage-poke" class="poke-button stage-poke-btn" type="button" data-action="poke" title="戳一下 · 空格键" data-i18n-title="pokeTitle"><span data-i18n="poke">戳一下</span><span class="sparkle" aria-hidden="true">✦</span></button>
+        </div>
         <canvas id="slime-canvas" tabindex="0" aria-label="互动史莱姆：按住揉捏，拖动拎起，松手回弹。也可以按空格键戳一下。" data-i18n-label="canvas" aria-describedby="stage-help"></canvas>
         <button id="pet-handle" class="pet-handle" type="button" aria-label="拖动这里移动" title="拖动这里移动" data-i18n-label="petDrag" data-i18n-title="petDrag" hidden><span aria-hidden="true"></span></button>
-        <button id="stage-poke" class="poke-button stage-poke-btn" type="button" data-action="poke" title="戳一下 · 空格键" data-i18n-title="pokeTitle"><span data-i18n="poke">戳一下</span><span class="sparkle" aria-hidden="true">✦</span></button>
         <div id="unsupported" class="stage-message stage-error" role="alert" hidden>
           <h2 data-i18n="waiting">等待 WebGPU</h2>
           <p id="error-message"></p>
@@ -124,6 +156,18 @@
                 <input type="color" id="custom-color" class="custom-color-input" value="#ffb86c" data-i18n-label="customLabel" aria-label="自定义颜色" />
                 <span></span>
               </label>
+            </div>
+          </div>
+          <div class="accessory-control">
+            <div class="control-heading accessory-heading">
+              <span id="accessory-label" class="control-label" data-i18n="accessory">打工装扮</span>
+              <p id="accessory-name" class="accessory-name" aria-live="polite">素颜</p>
+            </div>
+            <div class="accessory-pills" role="group" aria-labelledby="accessory-label">
+              <button class="acc-pill is-selected" type="button" data-accessory="none" data-acc-name="accNone" data-i18n-label="accNoneLabel" aria-label="素颜无配件" aria-pressed="true"><span data-i18n="accNone">素颜</span></button>
+              <button class="acc-pill" type="button" data-accessory="badge" data-acc-name="accBadge" data-i18n-label="accBadgeLabel" aria-label="打工人工牌" aria-pressed="false"><span data-i18n="accBadge">工牌</span></button>
+              <button class="acc-pill" type="button" data-accessory="coffee" data-acc-name="accCoffee" data-i18n-label="accCoffeeLabel" aria-label="续命冰美式" aria-pressed="false"><span data-i18n="accCoffee">冰美式</span></button>
+              <button class="acc-pill" type="button" data-accessory="bandaid" data-acc-name="accBandaid" data-i18n-label="accBandaidLabel" aria-label="战损创可贴" aria-pressed="false"><span data-i18n="accBandaid">创可贴</span></button>
             </div>
           </div>
           <div class="range-control">

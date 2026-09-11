@@ -53,3 +53,54 @@ test('idle blinks briefly; reduced motion disables idle blink and gaze', () => {
   face.update(face.blinkAt + 0.11);
   assert.equal(face.state.blink, 0);
 });
+
+test('mood state machine accumulates anger, shifts expressions, and naturally cools down', () => {
+  const face = new FaceMotion();
+  assert.equal(face.mood, 'chill');
+  assert.equal(face.anger, 0);
+
+  // Provoke into annoyed
+  face.addAnger(0.4);
+  assert.equal(face.mood, 'annoyed');
+  advance(face, 0.25);
+  assert.ok(face.state.annoyed > 0.5);
+
+  // Provoke further into rage
+  face.addAnger(0.4);
+  assert.equal(face.mood, 'rage');
+  advance(face, 0.25);
+  assert.ok(face.state.angry > 0.5);
+
+  // High anger release triggers angry reaction instead of happy celebration
+  face.grab(true);
+  face.grab(false, true);
+  advance(face, 0.3);
+  assert.equal(face.expression, 'angry');
+
+  // Natural anger decay over several seconds without disturbance
+  advance(face, 12);
+  assert.equal(face.anger, 0);
+  assert.equal(face.mood, 'chill');
+});
+
+test('sleep system enables napping when calm and triggers startled wake-up on poke', () => {
+  const face = new FaceMotion();
+  face.fallAsleep();
+  assert.equal(face.isSleeping, true);
+  assert.equal(face.mood, 'sleepy');
+  advance(face, 0.4);
+  assert.ok(face.state.sleepy > 0.8);
+
+  // Sudden touch startles awake
+  face.wakeUp(true);
+  assert.equal(face.isSleeping, false);
+  advance(face, 0.2);
+  assert.equal(face.expression, 'startle');
+  assert.ok(face.state.startle > 0.7);
+
+  // Angry softie refuses to fall asleep
+  face.reset();
+  face.addAnger(0.7);
+  face.fallAsleep();
+  assert.equal(face.isSleeping, false, 'cannot fall asleep when enraged');
+});

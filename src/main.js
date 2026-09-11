@@ -5,6 +5,7 @@ import { makeStudio } from './studio.js';
 import { setupUI } from './ui.js';
 import { createPetController, gazeFromCursor, isPetMode, petCamera, PET_BOUNDS, petSizeFromSearch } from './pet.js';
 import { sound } from './sound.js';
+import { RageMeter } from './rage-meter.js';
 import './style.css';
 
 const petMode = isPetMode(location.search);
@@ -12,14 +13,26 @@ const desktop = window.softieDesktop;
 const initialPetSize = petSizeFromSearch(location.search);
 const physics = new JellyPhysics();
 if (petMode) physics.setBounds(PET_BOUNDS);
+const rageMeter = petMode ? null : new RageMeter();
 let slime, studio, ready = false;
 let isDizzyPending = false;
+let lastSnoreTime = 0;
+let lastActivity = performance.now();
+const registerActivity = () => {
+  // Only update activity when awake so mouse movement never disturbs sleep
+  if (!slime?.faceMotion.isSleeping) {
+    lastActivity = performance.now();
+  }
+};
+
 physics.onLand = impact => {
   if (!ready) return;
   if (isDizzyPending) {
     isDizzyPending = false;
     sound.playDizzyLand(impact);
     slime?.faceMotion.react('dizzy');
+  } else if (slime?.faceMotion.anger > 0.48) {
+    sound.playAngryLand(impact);
   } else {
     sound.playLand(impact);
   }
@@ -28,14 +41,55 @@ physics.onEntryComplete = () => {
   slime?.faceMotion.react('happy');
   sound.playWakeup();
 };
+let lastPokeTime = 0;
+let rapidPokeCount = 0;
+
 function poke() {
   if (!ready) return;
+  const now = performance.now();
+  lastActivity = now;
+
+  if (slime?.faceMotion.isSleeping) {
+    rapidPokeCount = 0;
+    slime.faceMotion.wakeUp(true);
+    sound.playStartle();
+    physics.poke();
+    return;
+  }
+
   physics.poke();
-  slime.faceMotion.react('surprised');
-  sound.playPoke();
+  rageMeter?.pulse(1.0);
+
+  const dtPoke = now - lastPokeTime;
+  lastPokeTime = now;
+
+  if (dtPoke < 750) {
+    rapidPokeCount++;
+  } else {
+    rapidPokeCount = 1;
+  }
+
+  if (rapidPokeCount >= 2) {
+    // Rapid continuous poking: emotion shifts towards annoyed and angry
+    slime?.faceMotion.addAnger(0.20);
+    rageMeter?.pulse(1.4);
+    if (slime?.faceMotion.anger > 0.55) {
+      sound.playAngryPoke(slime.faceMotion.anger);
+    } else {
+      sound.playPoke();
+    }
+  } else {
+    // Single poke: restore original surprised round circle ':O' mouth!
+    slime?.faceMotion.react('surprised');
+    sound.playPoke();
+  }
 }
 const ui = setupUI({
   onColor: ({ color }) => { slime?.setColor(color); studio?.setColor(color); slime?.faceMotion.react('wink'); },
+  onAccessory: type => {
+    slime?.setAccessory(type);
+    slime?.faceMotion.react('wink');
+  },
   onStiffness: stiffness => physics.setConfig({ stiffness }),
   onDamping: damping => physics.setConfig({ damping }),
   onPoke: poke,
@@ -44,7 +98,10 @@ const ui = setupUI({
     physics.reset();
     slime?.setColor('#f17fa9');
     studio?.setColor('#f17fa9');
+    slime?.setAccessory('none');
     slime?.faceMotion.reset();
+    ui.setMood('chill');
+    rageMeter?.reset();
   },
   onWakeup: () => {
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -77,6 +134,7 @@ async function start() {
   renderer.setClearColor('#f5f5f3', petMode ? 0 : 1);
   await renderer.init();
   if (!renderer.backend.isWebGPUBackend) throw new Error('nativeRequired');
+  rageMeter?.setDevice(renderer.backend.device);
 
   const scene = new THREE.Scene();
   scene.background = petMode ? null : new THREE.Color('#f5f5f3');
@@ -95,6 +153,8 @@ async function start() {
     const rect = stage.getBoundingClientRect();
     const { width, height } = rect;
     renderer.setPixelRatio(dpr);
+    let renderedLeft = 0;
+    let renderedWidth = width;
     if (petMode) {
       Object.assign(canvas.style, { position: 'absolute', left: '0', top: '0', width: `${width}px`, height: `${height}px` });
       renderer.setSize(width, height, false);
@@ -113,6 +173,8 @@ async function start() {
       const right = Math.max(0, (desktopLayout ? window.innerWidth * 0.744 - 12 : window.innerWidth) - rect.right);
       const bottom = desktopLayout ? Math.max(0, window.innerHeight - rect.bottom) : 0;
       const canvasWidth = width + left + right, canvasHeight = height + top + bottom;
+      renderedLeft = left;
+      renderedWidth = canvasWidth;
       Object.assign(canvas.style, {
         position: 'absolute', left: `${-left}px`, top: `${-top}px`,
         width: `${canvasWidth}px`, height: `${canvasHeight}px`,
@@ -121,13 +183,20 @@ async function start() {
       camera.aspect = width / height;
       const visibleHeight = Math.max(desktopLayout ? 3.25 : 3.85, (desktopLayout ? 4.12 : 4.45) / camera.aspect);
       const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(16)));
-      const camY = desktopLayout ? 1.1 + distance * 0.15 : 1.30 + distance * 0.12;
-      const lookAtY = desktopLayout ? 1.03 : 1.22;
+      const camY = desktopLayout ? 1.1 + distance * 0.15 : 1.18 + distance * 0.08;
+      const lookAtY = desktopLayout ? 1.03 : 1.10;
       camera.position.set(0.19, camY, distance);
       camera.lookAt(0.19, lookAtY, 0);
       camera.setViewOffset(width, height, -left, -top, canvasWidth, canvasHeight);
     }
     camera.updateProjectionMatrix();
+    rageMeter?.resize();
+    if (rageMeter?.container && !petMode && width > 0) {
+      const centerVec = new THREE.Vector3(0, 0, 0);
+      centerVec.project(camera);
+      const slimeStageX = -renderedLeft + (centerVec.x + 1) * renderedWidth / 2;
+      rageMeter.container.style.left = `${Math.round(slimeStageX)}px`;
+    }
   };
   const observer = new ResizeObserver(resize);
   observer.observe(stage);
@@ -151,12 +220,14 @@ async function start() {
   };
   const followPointer = event => {
     if (event.pointerType !== 'mouse' || !finePointer.matches) { clearGaze(); return; }
+    if (slime?.faceMotion.isSleeping) return;
     const eye = eyeInWindow();
     const r = canvas.getBoundingClientRect();
     slime.faceMotion.lookAt((event.clientX - eye.x) / (r.width * 0.24), (eye.y - event.clientY) / (r.height * 0.24));
   };
   const removePetCursor = petController?.onCursor(point => {
     if (!finePointer.matches || !point) { clearGaze(); return; }
+    if (slime?.faceMotion.isSleeping) return;
     const eye = eyeInWindow();
     const gaze = gazeFromCursor(point, { x: window.screenX + eye.x, y: window.screenY + eye.y });
     slime.faceMotion.lookAt(gaze.x, gaze.y);
@@ -164,6 +235,13 @@ async function start() {
   window.addEventListener('pointermove', followPointer, { passive: true });
   document.documentElement.addEventListener('pointerleave', clearGaze);
   let pointerId = null;
+  const touches = new Map();
+  let pinchDistance = 0;
+  let pinchSoundRatio = 1;
+  const pinchA = new THREE.Vector3();
+  const pinchB = new THREE.Vector3();
+  const pinchMid = new THREE.Vector3();
+  const pinchAxis = new THREE.Vector3();
   let pressTime = 0, pressX = 0, pressY = 0, moved = false;
   let lastMoveTime = 0, lastMoveX = 0, lastMoveY = 0;
   let maxStretchDist = 0;
@@ -175,11 +253,44 @@ async function start() {
     raycaster.setFromCamera(ndc, camera);
   };
   canvas.addEventListener('pointerdown', event => {
-    if (pointerId !== null || event.button !== 0) return;
+    if (event.button !== 0) return;
+    if (pointerId !== null) {
+      if (event.pointerType !== 'touch' || touches.size !== 1 || touches.has(event.pointerId)) return;
+      // The first finger must hit the body; the second may land beside its edge.
+      ray(touches.get(pointerId));
+      if (!raycaster.ray.intersectPlane(plane, pinchA)) return;
+      ray(event);
+      if (!raycaster.ray.intersectPlane(plane, pinchB)) return;
+      const first = touches.get(pointerId);
+      pinchDistance = Math.hypot(event.clientX - first.clientX, event.clientY - first.clientY);
+      if (pinchDistance < 16) return;
+      touches.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+      canvas.setPointerCapture(event.pointerId);
+      pinchMid.copy(pinchA).add(pinchB).multiplyScalar(0.5);
+      physics.beginGrab(pinchMid.clone().sub(slime.group.position), pinchMid);
+      physics.beginPinch(pinchAxis.copy(pinchB).sub(pinchA));
+      pinchSoundRatio = 1;
+      moved = true;
+      isDizzyPending = false;
+      dizzyUntil = 0;
+      event.preventDefault();
+      return;
+    }
+    lastActivity = performance.now();
     ray(event);
     const hit = raycaster.intersectObject(slime.body, false)[0];
+
+    // Clicking / tapping when asleep startles the slime awake!
+    if (slime?.faceMotion.isSleeping) {
+      slime.faceMotion.wakeUp(true);
+      sound.playStartle();
+      physics.poke();
+      if (!hit) return;
+    }
+
     if (!hit) return;
     pointerId = event.pointerId;
+    if (event.pointerType === 'touch') touches.set(pointerId, { clientX: event.clientX, clientY: event.clientY });
     pressTime = performance.now(); pressX = event.clientX; pressY = event.clientY; moved = false;
     lastMoveTime = performance.now(); lastMoveX = event.clientX; lastMoveY = event.clientY;
     maxStretchDist = 0;
@@ -201,6 +312,27 @@ async function start() {
     event.preventDefault();
   });
   canvas.addEventListener('pointermove', event => {
+    if (touches.has(event.pointerId)) {
+      Object.assign(touches.get(event.pointerId), { clientX: event.clientX, clientY: event.clientY });
+      if (touches.size === 2) {
+        const [a, b] = touches.values();
+        ray(a);
+        const hitA = raycaster.ray.intersectPlane(plane, pinchA);
+        ray(b);
+        if (hitA && raycaster.ray.intersectPlane(plane, pinchB)) {
+          physics.moveGrab(pinchMid.copy(pinchA).add(pinchB).multiplyScalar(0.5));
+          const ratio = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY) / pinchDistance;
+          physics.movePinch(ratio);
+          if (Math.abs(ratio - pinchSoundRatio) > 0.12) {
+            if (ratio > pinchSoundRatio) sound.playStretch(Math.min(1, Math.abs(ratio - 1)));
+            else sound.playSquish();
+            pinchSoundRatio = ratio;
+          }
+        }
+        event.preventDefault();
+        return;
+      }
+    }
     if (pointerId !== null) {
       if (event.pointerId !== pointerId) return;
       const now = performance.now();
@@ -236,6 +368,7 @@ async function start() {
         dizzyUntil = now + 650;
         isDizzyPending = true;
         dizzyPendingUntil = now + 2000;
+        slime?.faceMotion.addAnger(0.42);
         sound.playDizzy();
         shakeWindowStart = now;
         shakeStartX = event.clientX;
@@ -268,9 +401,31 @@ async function start() {
     slime?.faceMotion.react('dizzy');
   };
   const release = event => {
+    if (touches.size === 2 && touches.has(event?.pointerId) && event.type === 'pointerup') {
+      touches.delete(event.pointerId);
+      const [id, remaining] = touches.entries().next().value;
+      pointerId = id;
+      physics.endPinch();
+      ray(remaining);
+      if (raycaster.ray.intersectPlane(plane, worldTarget)) {
+        physics.beginGrab(worldTarget.clone().sub(slime.group.position), worldTarget);
+      }
+      pressX = lastMoveX = shakeStartX = remaining.clientX;
+      pressY = lastMoveY = shakeStartY = remaining.clientY;
+      lastMoveTime = shakeWindowStart = performance.now();
+      shakePathDist = maxStretchDist = 0;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      return;
+    }
+    if (touches.has(event?.pointerId) && event.type !== 'pointerup') event = undefined;
     if (pointerId === null || (event?.pointerId !== undefined && event.pointerId !== pointerId)) return;
     const id = pointerId;
     pointerId = null;
+    const capturedTouches = [...touches.keys()];
+    touches.clear();
+    for (const touchId of capturedTouches) {
+      if (canvas.hasPointerCapture(touchId)) canvas.releasePointerCapture(touchId);
+    }
     dizzyUntil = 0;
     physics.endGrab();
 
@@ -314,15 +469,13 @@ async function start() {
   window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
   window.addEventListener('keydown', unlockAudio, { once: true, passive: true });
 
-  let lastActivity = performance.now();
-  const registerActivity = () => { lastActivity = performance.now(); };
   window.addEventListener('pointermove', registerActivity, { passive: true });
   window.addEventListener('pointerdown', registerActivity, { passive: true });
   window.addEventListener('keydown', registerActivity, { passive: true });
 
   const ambientInterval = setInterval(() => {
     if (!ready || document.hidden || pointerId !== null) return;
-    if (performance.now() - lastActivity > 12000) {
+    if (performance.now() - lastActivity > 12000 && !slime?.faceMotion.isSleeping) {
       sound.playAmbientBubble();
       lastActivity = performance.now() - 3000;
     }
@@ -342,9 +495,23 @@ async function start() {
     if (document.hidden) return;
     const dt = Math.min(Math.max(elapsed / 1000, 0), 1 / 15);
     time += dt;
+
+    // Sleep mode when inactive for 15 seconds
+    if (pointerId === null && !slime.faceMotion.isSleeping && now - lastActivity > 15000 && slime.faceMotion.anger < 0.25) {
+      slime.faceMotion.fallAsleep();
+    }
+
+    // Gentle rhythmic snoring when sleeping
+    if (slime.faceMotion.isSleeping && now - lastSnoreTime > 2400) {
+      lastSnoreTime = now;
+      sound.playSnore();
+    }
+
     physics.update(dt);
     slime.update(time);
     studio.update(physics.position);
+    ui.setMood(slime.faceMotion.mood);
+    rageMeter?.update(dt, slime.faceMotion.anger, slime.faceMotion.mood, slime.faceMotion.isSleeping);
     renderer.render(scene, camera);
     frames++; windowFrames++;
     frameTimes.push(elapsed);
@@ -376,7 +543,7 @@ async function start() {
     physics: { ...physics.diagnostics, center: { ...physics.position }, dragging: pointerId !== null },
   });
   if (import.meta.env.DEV || new URLSearchParams(location.search).has('test')) {
-    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera };
+    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera, rageMeter };
   }
   window.addEventListener('pagehide', () => {
     renderer.setAnimationLoop(null); observer.disconnect();
@@ -385,7 +552,7 @@ async function start() {
     document.documentElement.removeEventListener('pointerleave', clearGaze);
     reducedMotion.removeEventListener('change', syncMotionPreference);
     removePetCursor();
-    slime.dispose(); studio.dispose(); renderer.dispose();
+    slime.dispose(); studio.dispose(); renderer.dispose(); rageMeter?.dispose();
   }, { once: true });
 }
 

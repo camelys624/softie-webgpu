@@ -4,7 +4,7 @@ import { sound } from './sound.js';
 const DEFAULTS = { color: '#f17fa9', stiffness: 35, damping: 45, volume: 80 };
 const PRESET_NAMES = { '#f17fa9': 'strawberry', '#a5e0cd': 'mint', '#c8afec': 'grape' };
 
-export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWakeup, pet = false }) {
+export function setupUI({ onColor, onAccessory, onStiffness, onDamping, onPoke, onReset, onWakeup, pet = false }) {
   if (pet) {
     document.documentElement.dataset.mode = 'pet';
     document.body.dataset.mode = 'pet';
@@ -18,7 +18,15 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
   const fpsText = document.querySelector('#fps');
   const swatches = [...document.querySelectorAll('[data-color]')];
   const colorName = document.querySelector('#color-name');
-  let language = 'zh', selectedColor = DEFAULTS.color, rendererState = 'pending', errorKey = 'initFailed';
+  const accPills = [...document.querySelectorAll('.acc-pill')];
+  const accessoryName = document.querySelector('#accessory-name');
+  let language = 'zh', selectedColor = DEFAULTS.color, selectedAccessory = 'none', rendererState = 'pending', errorKey = 'initFailed';
+  let currentMood = 'chill';
+  const moodBadge = document.querySelector('#mood-badge');
+  const moodText = document.querySelector('#mood-text');
+  const moodKeys = { chill: 'moodChill', annoyed: 'moodAnnoyed', rage: 'moodRage', sleepy: 'moodSleepy' };
+  const rageBadge = document.querySelector('#rage-hud-badge');
+  const rageKeys = { chill: 'rageChill', annoyed: 'rageAnnoyed', rage: 'rageMax', sleepy: 'rageSleepy' };
   const values = { stiffness: DEFAULTS.stiffness, damping: DEFAULTS.damping };
   try { if (localStorage.getItem('softie-language') === 'en') language = 'en'; } catch { /* Storage may be disabled. */ }
   const t = key => translate(language, key);
@@ -26,6 +34,20 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
   function renderStatus() {
     statusText.textContent = t(rendererState === 'ready' ? 'connected' : rendererState === 'error' ? 'disconnected' : 'connecting');
     document.querySelector('#error-message').textContent = t(errorKey) ?? t('initFailed');
+  }
+
+  function renderMood() {
+    if (moodBadge && moodText) {
+      moodBadge.dataset.mood = currentMood;
+      const key = moodKeys[currentMood] ?? 'moodChill';
+      moodText.textContent = t(key);
+      moodText.setAttribute('data-i18n', key);
+    }
+    if (rageBadge) {
+      const rKey = rageKeys[currentMood] ?? 'rageChill';
+      rageBadge.textContent = t(rKey);
+      rageBadge.setAttribute('data-i18n', rKey);
+    }
   }
 
   function setLanguage(value) {
@@ -45,7 +67,9 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
       button.setAttribute('aria-pressed', String(button.dataset.language === language));
     }
     selectColor(selectedColor);
+    selectAccessory(selectedAccessory);
     renderStatus();
+    renderMood();
   }
 
   const PRESET_COLORS = ['#f17fa9', '#a5e0cd', '#c8afec'];
@@ -128,6 +152,32 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
     customInput.addEventListener('change', event => {
       handleCustomColor(event);
       sound.playBubble(1.15);
+    });
+  }
+
+  function selectAccessory(type) {
+    selectedAccessory = type;
+    for (const pill of accPills) {
+      const active = pill.dataset.accessory === type;
+      pill.classList.toggle('is-selected', active);
+      pill.setAttribute('aria-pressed', String(active));
+    }
+    const accKey = {
+      none: 'accNone',
+      badge: 'accBadge',
+      coffee: 'accCoffee',
+      darkCircles: 'accCoffee',
+      bandaid: 'accBandaid',
+    }[type] ?? 'accNone';
+    if (accessoryName) accessoryName.textContent = t(accKey);
+  }
+
+  for (const pill of accPills) {
+    pill.addEventListener('click', () => {
+      const type = pill.dataset.accessory;
+      selectAccessory(type);
+      if (typeof onAccessory === 'function') onAccessory(type);
+      sound.playBubble(1.25);
     });
   }
 
@@ -214,6 +264,7 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
       }, 600);
     }
     selectColor(DEFAULTS.color);
+    selectAccessory('none');
     setRange('stiffness', DEFAULTS.stiffness);
     setRange('damping', DEFAULTS.damping);
     setRange('volume', DEFAULTS.volume);
@@ -250,6 +301,7 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
       return {
         color: selectedColor,
         colorName: PRESET_NAMES[selectedColor.toLowerCase()] ?? 'custom',
+        accessory: selectedAccessory,
         stiffness: values.stiffness,
         damping: values.damping,
         soundEnabled: sound.enabled,
@@ -263,6 +315,10 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
     pickColor(name) {
       const swatch = swatches.find(element => element.dataset.colorName === name && !element.classList.contains('swatch-custom'));
       if (swatch) swatch.click();
+    },
+    pickAccessory(type) {
+      const pill = accPills.find(element => element.dataset.accessory === type);
+      if (pill) pill.click();
     },
     setParameter(id, value) {
       const callback = id === 'stiffness' ? onStiffness : id === 'damping' ? onDamping : null;
@@ -303,6 +359,12 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
       }
       unsupported.hidden = true;
     },
+    setMood(mood) {
+      if (currentMood === mood) return;
+      currentMood = mood;
+      renderMood();
+    },
+    setAccessory: selectAccessory,
     setFps(fps) {
       fpsText.textContent = Number.isFinite(fps) ? `${Math.round(fps)} FPS` : '— FPS';
     },

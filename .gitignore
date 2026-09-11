@@ -4,3 +4,4 @@ dist/
 artifacts
 *.pkg.tar.zst
 .playwright-mcp
+aa.js

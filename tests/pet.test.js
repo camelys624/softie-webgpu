@@ -37,12 +37,13 @@ test('pet menu reflects state and controller routes native commands', () => {
     on: (channel, listener) => listeners.set(channel, listener),
   };
   const ui = {
-    state: { colorName: 'mint', stiffness: 35, damping: 45, soundEnabled: true, language: 'zh' },
+    state: { colorName: 'mint', accessory: 'badge', stiffness: 35, damping: 45, soundEnabled: true, language: 'zh' },
     t: key => `t:${key}`,
     poke: () => calls.push(['poke']),
     reset: () => calls.push(['reset']),
     toggleSound: () => calls.push(['sound']),
     pickColor: value => calls.push(['color', value]),
+    pickAccessory: value => calls.push(['accessory', value]),
     setParameter: (kind, value) => calls.push([kind, value]),
     setLanguage: value => calls.push(['language', value]),
   };
@@ -54,17 +55,20 @@ test('pet menu reflects state and controller routes native commands', () => {
     const menu = buildPetMenu({ ...ui.state, size: 'medium' }, ui.t);
     const colorMenu = menu.find(item => item.label === 't:color').submenu;
     assert.equal(colorMenu.find(item => item.id === 'color:mint').checked, true);
+    const accessoryMenu = menu.find(item => item.label === 't:accessory').submenu;
+    assert.equal(accessoryMenu.find(item => item.id === 'accessory:badge').checked, true);
     assert.equal(menu.find(item => item.id === 'sound').checked, true);
 
     const sizes = [];
     const controller = createPetController({ desktop, ui, size: 'medium', onSize: value => sizes.push(value) });
     assert.equal(controller.run('poke'), true);
     assert.equal(controller.run('color:grape'), true);
+    assert.equal(controller.run('accessory:coffee'), true);
     assert.equal(controller.run('stiffness:75'), true);
     assert.equal(controller.run('size:large'), true);
     assert.equal(controller.run('language:en'), true);
     assert.equal(controller.run('unknown'), false);
-    assert.deepEqual(calls, [['poke'], ['color', 'grape'], ['stiffness', 75], ['language', 'en']]);
+    assert.deepEqual(calls, [['poke'], ['color', 'grape'], ['accessory', 'coffee'], ['stiffness', 75], ['language', 'en']]);
     assert.deepEqual(sizes, ['large']);
     assert.equal(controller.size, 'large');
     assert.ok(sent.some(message => message.channel === 'softie:menu'));

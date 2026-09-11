@@ -18,6 +18,10 @@ test('soundFX works safely in headless environment without audio hardware', () =
   assert.doesNotThrow(() => sound.playHappyPurr());
   assert.doesNotThrow(() => sound.playSliderTick());
   assert.doesNotThrow(() => sound.playAmbientBubble());
+  assert.doesNotThrow(() => sound.playAngryLand(1.8));
+  assert.doesNotThrow(() => sound.playAngryPoke(0.8));
+  assert.doesNotThrow(() => sound.playSnore());
+  assert.doesNotThrow(() => sound.playStartle());
   assert.doesNotThrow(() => sound.resume());
 });
 
@@ -101,8 +105,12 @@ test('soundFX correctly synthesizes procedural audio events when AudioContext ex
     sound.playHappyPurr();
     sound.playSliderTick();
     sound.playAmbientBubble();
+    sound.playAngryLand(2.0);
+    sound.playAngryPoke(0.8);
+    sound.playSnore();
+    sound.playStartle();
 
-    assert.ok(createdNodes.length >= 20);
+    assert.ok(createdNodes.length >= 25);
   } finally {
     globalThis.AudioContext = prevAudioContext;
     globalThis.window = prevWindow;
