@@ -131,6 +131,19 @@ test('drag follows the pointer, yields locally, and releases with inertia withou
   assert.ok(jelly.diagnostics.deformation < 0.0001);
 });
 
+test('custom travel bounds constrain dragging and survive reset', () => {
+  const jelly = new JellyPhysics();
+  jelly.setBounds({ x: 0.35, y: 0.9, z: 0.3 });
+  jelly.beginGrab(point, point);
+  jelly.moveGrab({ x: 20, y: 20, z: 20 });
+  advance(jelly, 1);
+  assert.ok(jelly.position.x >= -0.35 && jelly.position.x <= 0.35);
+  assert.ok(jelly.position.y >= 0 && jelly.position.y <= 0.9);
+  assert.ok(jelly.position.z >= -0.3 && jelly.position.z <= 0.3);
+  jelly.reset();
+  assert.deepEqual(jelly.diagnostics.bounds, { x: 0.35, y: 0.9, z: 0.3 });
+});
+
 test('softness changes compliance and damping changes the settling envelope', () => {
   const soft = new JellyPhysics();
   const firm = new JellyPhysics();

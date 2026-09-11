@@ -2,7 +2,7 @@
 pkgname=softie-desktop
 pkgver=1.0.0
 pkgrel=1
-pkgdesc='A native WebGPU soft-body toy desktop application'
+pkgdesc='A native WebGPU soft-body desktop pet'
 arch=('x86_64')
 url='https://softie.520ai.site'
 license=('MIT')
@@ -21,6 +21,8 @@ package() {
   install -dm755 "$appdir/dist" "$appdir/electron"
   cp -a dist/. "$appdir/dist/"
   install -Dm644 electron/main.cjs "$appdir/electron/main.cjs"
+  install -Dm644 electron/preload.cjs "$appdir/electron/preload.cjs"
+  install -Dm644 electron/tray.png "$appdir/electron/tray.png"
   install -Dm755 electron/softie-launcher.sh "$pkgdir/usr/bin/softie"
   install -Dm644 electron/softie.desktop "$pkgdir/usr/share/applications/softie.desktop"
   install -Dm644 public/favicon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/softie.svg"

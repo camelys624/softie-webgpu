@@ -14,6 +14,8 @@ export const messages = {
     gpuUnsupported: '这个浏览器尚未启用 WebGPU。请在支持 WebGPU 的新版浏览器中打开。',
     nativeRequired: '需要原生 WebGPU 渲染器。', deviceLost: 'WebGPU 设备连接已中断，请刷新页面重新连接。',
     initFailed: 'WebGPU 启动失败，请刷新页面，或使用支持 WebGPU 的新版浏览器。',
+    petSound: '音效', petSize: '大小', petSizeSmall: '小', petSizeMedium: '中', petSizeLarge: '大', petDefault: '默认',
+    petQuit: '退出', petDrag: '拖动这里移动',
   },
   en: {
     title: 'softie · Soft & squishy.', description: 'A soft little WebGPU slime. Squish, stretch, and let the day feel lighter.',
@@ -30,6 +32,8 @@ export const messages = {
     gpuUnsupported: 'WebGPU is not enabled in this browser. Please open this page in a recent browser that supports WebGPU.',
     nativeRequired: 'A native WebGPU renderer is required.', deviceLost: 'The WebGPU device disconnected. Refresh the page to reconnect.',
     initFailed: 'WebGPU did not start. Refresh the page or use a recent browser that supports WebGPU.',
+    petSound: 'Sound', petSize: 'Size', petSizeSmall: 'Small', petSizeMedium: 'Medium', petSizeLarge: 'Large', petDefault: 'Default',
+    petQuit: 'Quit', petDrag: 'Drag here to move',
   },
 };
 

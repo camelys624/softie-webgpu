@@ -24,20 +24,22 @@ npm run preview
 
 预览地址 http://127.0.0.1:4173 。`dist` 可以作为静态站点部署；线上需要 HTTPS，本地使用 localhost。
 
-## Arch Linux 桌面端
+## Arch Linux 桌面宠物
 
-项目的交付形态是 Electron 桌面应用，不需要运行 Vite 开发服务器。Arch Linux 上先安装构建与运行依赖：
+项目提供透明、置顶的 Electron 桌面宠物，不依赖 Vite 开发服务器。Arch Linux 上先安装构建与运行依赖：
 
 ```sh
 sudo pacman -S nodejs npm electron
 npm install
 ```
 
-直接启动桌面窗口：
+直接启动桌面宠物：
 
 ```sh
 npm run desktop
 ```
+
+鼠标悬停到宠物顶部可显示拖动把手；右键宠物或点击托盘图标可调整颜色、软硬、阻尼、大小、音效和语言。窗口初始位置遵循桌面状态区习惯：Linux/macOS 在右上角，Windows 在右下角。`Ctrl+Q` 或托盘菜单可退出。
 
 生成 Arch 安装包：
 
@@ -46,7 +48,7 @@ npm run package:arch
 sudo pacman -U ./softie-desktop-1.0.0-1-x86_64.pkg.tar.zst
 ```
 
-安装包运行时只依赖系统 `electron`，加载本地构建的 `dist`，不启动开发服务器；桌面壳仍只使用原生 WebGPU，不提供 WebGL 回退。
+安装包运行时只依赖系统 `electron`，加载本地构建的 `dist`，不启动开发服务器；桌面宠物仍只使用原生 WebGPU，不提供 WebGL 回退。
 
 ## 玩法
 

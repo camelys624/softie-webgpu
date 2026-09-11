@@ -3,10 +3,15 @@ import { JellyPhysics } from './physics.js';
 import { makeSlime } from './slime.js';
 import { makeStudio } from './studio.js';
 import { setupUI } from './ui.js';
+import { createPetController, gazeFromCursor, isPetMode, petCamera, PET_BOUNDS, petSizeFromSearch } from './pet.js';
 import { sound } from './sound.js';
 import './style.css';
 
+const petMode = isPetMode(location.search);
+const desktop = window.softieDesktop;
+const initialPetSize = petSizeFromSearch(location.search);
 const physics = new JellyPhysics();
+if (petMode) physics.setBounds(PET_BOUNDS);
 let slime, studio, ready = false;
 let isDizzyPending = false;
 physics.onLand = impact => {
@@ -43,13 +48,20 @@ const ui = setupUI({
   },
   onWakeup: () => {
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    if (reducedMotion.matches) {
+    if (reducedMotion.matches || petMode) {
       sound.playWakeup();
     } else {
       physics.startEntry();
     }
   },
+  pet: petMode,
 });
+const petController = petMode ? createPetController({
+  desktop,
+  ui,
+  size: initialPetSize,
+  onSize: level => desktop?.send('softie:resize', { level }),
+}) : null;
 
 async function start() {
   if (!navigator.gpu) throw new Error('gpuUnsupported');
@@ -57,21 +69,21 @@ async function start() {
   const stage = document.querySelector('#stage');
   // Renderer + one explicit backend: no fallback backend is even registered.
   const renderer = new THREE.Renderer(new THREE.WebGPUBackend({
-    canvas, antialias: true, alpha: false, powerPreference: 'high-performance',
-  }), { antialias: true, alpha: false, getFallback: null });
+    canvas, antialias: true, alpha: petMode, powerPreference: 'high-performance',
+  }), { antialias: true, alpha: petMode, getFallback: null });
   renderer.library = new THREE.StandardNodeLibrary();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
-  renderer.setClearColor('#f5f5f3', 1);
+  renderer.setClearColor('#f5f5f3', petMode ? 0 : 1);
   await renderer.init();
   if (!renderer.backend.isWebGPUBackend) throw new Error('nativeRequired');
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#f5f5f3');
+  scene.background = petMode ? null : new THREE.Color('#f5f5f3');
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40);
   studio = makeStudio(renderer, scene);
   studio.setColor('#f17fa9');
-  slime = makeSlime(physics, scene.environment);
+  slime = makeSlime(physics, scene.environment, { transparentBackdrop: petMode });
   scene.add(slime.group);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
@@ -82,28 +94,39 @@ async function start() {
   const resize = () => {
     const rect = stage.getBoundingClientRect();
     const { width, height } = rect;
-    // Overscan the designed hero viewport so a lifted jelly is not sliced by its box.
-    // A camera view offset preserves the reference framing and its pixel scale.
-    const desktop = window.innerWidth >= 900;
-    const left = Math.max(0, rect.left);
-    const top = desktop ? Math.max(0, rect.top) : 0;
-    const right = Math.max(0, (desktop ? window.innerWidth * 0.744 - 12 : window.innerWidth) - rect.right);
-    const bottom = desktop ? Math.max(0, window.innerHeight - rect.bottom) : 0;
-    const canvasWidth = width + left + right, canvasHeight = height + top + bottom;
-    Object.assign(canvas.style, {
-      position: 'absolute', left: `${-left}px`, top: `${-top}px`,
-      width: `${canvasWidth}px`, height: `${canvasHeight}px`,
-    });
     renderer.setPixelRatio(dpr);
-    renderer.setSize(canvasWidth, canvasHeight, false);
-    camera.aspect = width / height;
-    const visibleHeight = Math.max(desktop ? 3.25 : 3.85, (desktop ? 4.12 : 4.45) / camera.aspect);
-    const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(16)));
-    const camY = desktop ? 1.1 + distance * 0.15 : 1.30 + distance * 0.12;
-    const lookAtY = desktop ? 1.03 : 1.22;
-    camera.position.set(0.19, camY, distance);
-    camera.lookAt(0.19, lookAtY, 0);
-    camera.setViewOffset(width, height, -left, -top, canvasWidth, canvasHeight);
+    if (petMode) {
+      Object.assign(canvas.style, { position: 'absolute', left: '0', top: '0', width: `${width}px`, height: `${height}px` });
+      renderer.setSize(width, height, false);
+      const framing = petCamera(width, height);
+      camera.aspect = framing.aspect;
+      const distance = framing.visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(16)));
+      camera.position.set(0, framing.centerY + distance * 0.12, distance);
+      camera.lookAt(0, framing.centerY, 0);
+      camera.clearViewOffset();
+    } else {
+      // Overscan the designed hero viewport so a lifted jelly is not sliced by its box.
+      // A camera view offset preserves the reference framing and its pixel scale.
+      const desktopLayout = window.innerWidth >= 900;
+      const left = Math.max(0, rect.left);
+      const top = desktopLayout ? Math.max(0, rect.top) : 0;
+      const right = Math.max(0, (desktopLayout ? window.innerWidth * 0.744 - 12 : window.innerWidth) - rect.right);
+      const bottom = desktopLayout ? Math.max(0, window.innerHeight - rect.bottom) : 0;
+      const canvasWidth = width + left + right, canvasHeight = height + top + bottom;
+      Object.assign(canvas.style, {
+        position: 'absolute', left: `${-left}px`, top: `${-top}px`,
+        width: `${canvasWidth}px`, height: `${canvasHeight}px`,
+      });
+      renderer.setSize(canvasWidth, canvasHeight, false);
+      camera.aspect = width / height;
+      const visibleHeight = Math.max(desktopLayout ? 3.25 : 3.85, (desktopLayout ? 4.12 : 4.45) / camera.aspect);
+      const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(16)));
+      const camY = desktopLayout ? 1.1 + distance * 0.15 : 1.30 + distance * 0.12;
+      const lookAtY = desktopLayout ? 1.03 : 1.22;
+      camera.position.set(0.19, camY, distance);
+      camera.lookAt(0.19, lookAtY, 0);
+      camera.setViewOffset(width, height, -left, -top, canvasWidth, canvasHeight);
+    }
     camera.updateProjectionMatrix();
   };
   const observer = new ResizeObserver(resize);
@@ -117,15 +140,27 @@ async function start() {
   const normal = new THREE.Vector3();
   const gazeOrigin = new THREE.Vector3();
   const clearGaze = () => slime.faceMotion.lookAt(0, 0);
-  const followPointer = event => {
-    if (event.pointerType !== 'mouse' || !finePointer.matches) { clearGaze(); return; }
+  const eyeInWindow = () => {
     const r = canvas.getBoundingClientRect();
     physics.deform(0, 1.2, 1.15, gazeOrigin);
     gazeOrigin.add(slime.group.position).project(camera);
-    const x = r.left + (gazeOrigin.x + 1) * r.width / 2;
-    const y = r.top + (1 - gazeOrigin.y) * r.height / 2;
-    slime.faceMotion.lookAt((event.clientX - x) / (r.width * 0.24), (y - event.clientY) / (r.height * 0.24));
+    return {
+      x: r.left + (gazeOrigin.x + 1) * r.width / 2,
+      y: r.top + (1 - gazeOrigin.y) * r.height / 2,
+    };
   };
+  const followPointer = event => {
+    if (event.pointerType !== 'mouse' || !finePointer.matches) { clearGaze(); return; }
+    const eye = eyeInWindow();
+    const r = canvas.getBoundingClientRect();
+    slime.faceMotion.lookAt((event.clientX - eye.x) / (r.width * 0.24), (eye.y - event.clientY) / (r.height * 0.24));
+  };
+  const removePetCursor = petController?.onCursor(point => {
+    if (!finePointer.matches || !point) { clearGaze(); return; }
+    const eye = eyeInWindow();
+    const gaze = gazeFromCursor(point, { x: window.screenX + eye.x, y: window.screenY + eye.y });
+    slime.faceMotion.lookAt(gaze.x, gaze.y);
+  }) ?? (() => {});
   window.addEventListener('pointermove', followPointer, { passive: true });
   document.documentElement.addEventListener('pointerleave', clearGaze);
   let pointerId = null;
@@ -300,6 +335,7 @@ async function start() {
   await renderer.compileAsync(scene, camera);
   ready = true;
   ui.setStatus('ready');
+  petController?.ready();
   renderer.setAnimationLoop(now => {
     const elapsed = now - previous;
     previous = now;
@@ -348,6 +384,7 @@ async function start() {
     window.removeEventListener('pointermove', followPointer);
     document.documentElement.removeEventListener('pointerleave', clearGaze);
     reducedMotion.removeEventListener('change', syncMotionPreference);
+    removePetCursor();
     slime.dispose(); studio.dispose(); renderer.dispose();
   }, { once: true });
 }

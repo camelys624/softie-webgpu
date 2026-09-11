@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Softie
 Name[zh_CN]=软乎乎
-Comment=A native WebGPU soft-body toy
-Comment[zh_CN]=原生 WebGPU 软体小玩具
+Comment=A native WebGPU soft-body desktop pet
+Comment[zh_CN]=原生 WebGPU 软体桌面宠物
 Exec=softie
 Icon=softie
 Terminal=false

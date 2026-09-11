@@ -704,8 +704,84 @@ input[type="range"]::-moz-range-thumb {
   color: #171817;
 }
 .stage-poke-btn,
-.stage-reset-btn {
+.stage-reset-btn,
+.pet-handle {
   display: none;
+}
+/* Desktop pet: only the stage survives, over a transparent window. */
+html[data-mode="pet"],
+body[data-mode="pet"],
+body[data-mode="pet"] .playground,
+body[data-mode="pet"] .preloader,
+body[data-mode="pet"] .stage-error {
+  background: transparent;
+}
+body[data-mode="pet"] {
+  overflow: hidden;
+}
+body[data-mode="pet"] .playground {
+  min-height: 0;
+  height: 100vh;
+}
+body[data-mode="pet"] .masthead,
+body[data-mode="pet"] .intro,
+body[data-mode="pet"] .interaction-hint,
+body[data-mode="pet"] .settings,
+body[data-mode="pet"] .page-footer,
+body[data-mode="pet"] .stage-poke-btn,
+body[data-mode="pet"] .preloader-message {
+  display: none !important;
+}
+body[data-mode="pet"] .stage {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: hidden;
+}
+body[data-mode="pet"] .stage-message p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+body[data-mode="pet"] .stage-message h2 {
+  font-size: 16px;
+}
+body[data-mode="pet"] .pet-handle {
+  display: block;
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 72px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  transform: translateX(-50%);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 3;
+}
+body[data-mode="pet"] .pet-handle > span {
+  display: block;
+  width: 44px;
+  height: 6px;
+  margin: 8px auto 0;
+  border-radius: 3px;
+  background: rgba(23, 24, 23, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+body[data-mode="pet"] .stage:hover .pet-handle,
+body[data-mode="pet"] .pet-handle:focus-visible,
+body[data-mode="pet"] .pet-handle.is-dragging {
+  opacity: 1;
+}
+body[data-mode="pet"] .pet-handle:active,
+body[data-mode="pet"] .pet-handle.is-dragging {
+  cursor: grabbing;
 }
 .page-footer {
   position: absolute;

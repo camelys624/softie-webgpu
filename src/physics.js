@@ -1,5 +1,7 @@
 const STEP = 1 / 120;
 const GRAVITY = 8.8;
+// Travel limits for the body's centre; the desktop pet uses a tighter box that fits its window.
+const DEFAULT_BOUNDS = { x: 2.7, y: 3.4, z: 1.35 };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const vec = () => ({ x: 0, y: 0, z: 0 });
 const mode = () => ({ value: 0, velocity: 0 });
@@ -24,6 +26,7 @@ export class JellyPhysics {
     this.position = vec();
     this.velocity = vec();
     this.config = { stiffness: 0.35, damping: 0.45 };
+    this.bounds = { ...DEFAULT_BOUNDS };
     this._squash = mode();
     this._oval = mode();
     this._shearX = mode();
@@ -47,6 +50,13 @@ export class JellyPhysics {
   setConfig({ stiffness, damping } = {}) {
     if (Number.isFinite(stiffness)) this.config.stiffness = clamp(stiffness, 0, 1);
     if (Number.isFinite(damping)) this.config.damping = clamp(damping, 0, 1);
+  }
+
+  /** Limit how far the centre may travel: |x| <= x, 0 <= y <= y, |z| <= z. Survives reset(). */
+  setBounds({ x, y, z } = {}) {
+    if (Number.isFinite(x) && x > 0) this.bounds.x = x;
+    if (Number.isFinite(y) && y > 0) this.bounds.y = y;
+    if (Number.isFinite(z) && z > 0) this.bounds.z = z;
   }
 
   reset() {
@@ -214,9 +224,9 @@ export class JellyPhysics {
       const dx = this._target.x - this._startTarget.x;
       const dy = this._target.y - this._startTarget.y;
       const dz = this._target.z - this._startTarget.z;
-      const goalX = clamp(this._startPosition.x + dx, -2.7, 2.7);
-      const goalY = clamp(this._startPosition.y + dy, 0, 3.4);
-      const goalZ = clamp(this._startPosition.z + dz, -1.35, 1.35);
+      const goalX = clamp(this._startPosition.x + dx, -this.bounds.x, this.bounds.x);
+      const goalY = clamp(this._startPosition.y + dy, 0, this.bounds.y);
+      const goalZ = clamp(this._startPosition.z + dz, -this.bounds.z, this.bounds.z);
       const pull = 95 + stiffness * 105;
       const resistance = 2 * Math.sqrt(pull) * (0.66 + damping * 0.22);
       ax = (goalX - p.x) * pull - v.x * resistance;
@@ -262,7 +272,8 @@ export class JellyPhysics {
         v.y = 0;
       }
     }
-    for (const [axis, min, max] of [['x', -2.7, 2.7], ['y', 0, 3.4], ['z', -1.35, 1.35]]) {
+    const { x: bx, y: by, z: bz } = this.bounds;
+    for (const [axis, min, max] of [['x', -bx, bx], ['y', 0, by], ['z', -bz, bz]]) {
       if (p[axis] < min || p[axis] > max) {
         p[axis] = clamp(p[axis], min, max);
         v[axis] *= -0.16;
@@ -344,6 +355,7 @@ export class JellyPhysics {
       volumeScale: this._scaleX * this._scaleY * this._scaleZ,
       modes,
       config: { ...this.config },
+      bounds: { ...this.bounds },
       contacts: this._contacts,
       simulatedTime: this._time,
       steps: this._steps,

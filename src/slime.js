@@ -114,7 +114,7 @@ function glassTint(value) {
   return tint.multiplyScalar(1 / max).lerp(new THREE.Color('white'), 0.23);
 }
 
-export function makeSlime(physics, environment) {
+export function makeSlime(physics, environment, { transparentBackdrop = false } = {}) {
   const group = new THREE.Group();
   group.name = 'softie';
   const gel = new THREE.MeshPhysicalNodeMaterial({
@@ -158,7 +158,9 @@ export function makeSlime(physics, environment) {
   const rearReflection = environment ? pmremTexture(environment, rearDirection, 0.025).rgb : vec3(1);
   const rearFresnel = facing.oneMinus().pow(3).mul(0.85).add(0.035);
   rearMaterial.colorNode = mix(color('#f5f5f3'), rearReflection.mul(tint.pow(0.3)), rearFresnel);
-  rearMaterial.maskNode = facing.greaterThan(0.12);
+  // Over a transparent window nothing sits behind the gel, so the rear interface must reach
+  // almost all the way to the silhouette or the transmission pass would refract empty pixels.
+  rearMaterial.maskNode = facing.greaterThan(transparentBackdrop ? 0.03 : 0.12);
   const rear = new THREE.Mesh(body.geometry, rearMaterial);
   rear.name = 'rear-glass-interface';
   rear.renderOrder = -1;

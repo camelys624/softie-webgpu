@@ -2,8 +2,13 @@ import { translate } from './i18n.js';
 import { sound } from './sound.js';
 
 const DEFAULTS = { color: '#f17fa9', stiffness: 35, damping: 45, volume: 80 };
+const PRESET_NAMES = { '#f17fa9': 'strawberry', '#a5e0cd': 'mint', '#c8afec': 'grape' };
 
-export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWakeup }) {
+export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWakeup, pet = false }) {
+  if (pet) {
+    document.documentElement.dataset.mode = 'pet';
+    document.body.dataset.mode = 'pet';
+  }
   const stage = document.querySelector('#stage');
   const settings = document.querySelector('#settings-fieldset');
   const loading = document.querySelector('#loading');
@@ -14,6 +19,7 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
   const swatches = [...document.querySelectorAll('[data-color]')];
   const colorName = document.querySelector('#color-name');
   let language = 'zh', selectedColor = DEFAULTS.color, rendererState = 'pending', errorKey = 'initFailed';
+  const values = { stiffness: DEFAULTS.stiffness, damping: DEFAULTS.damping };
   try { if (localStorage.getItem('softie-language') === 'en') language = 'en'; } catch { /* Storage may be disabled. */ }
   const t = key => translate(language, key);
 
@@ -80,6 +86,7 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
   }
 
   function setRange(id, value) {
+    if (id in values) values[id] = value;
     const input = document.querySelector(`#${id}`);
     if (!input) return;
     input.value = value;
@@ -223,20 +230,47 @@ export function setupUI({ onColor, onStiffness, onDamping, onPoke, onReset, onWa
   }
 
   for (const button of document.querySelectorAll('[data-language]')) {
-    button.addEventListener('click', () => {
-      setLanguage(button.dataset.language);
-      try { localStorage.setItem('softie-language', language); } catch { /* The switch still works without persistence. */ }
-      if (soundToggle) soundToggle.title = t(sound.enabled ? 'soundOn' : 'soundOff');
-    });
+    button.addEventListener('click', () => chooseLanguage(button.dataset.language));
+  }
+  function chooseLanguage(value) {
+    setLanguage(value);
+    try { localStorage.setItem('softie-language', language); } catch { /* The switch still works without persistence. */ }
+    if (soundToggle) soundToggle.title = t(sound.enabled ? 'soundOn' : 'soundOff');
   }
   setLanguage(language);
 
   const preloaderStartTime = performance.now();
   const isTest = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('test');
-  const MIN_PRELOADER_DURATION = isTest ? 0 : 3000;
+  const MIN_PRELOADER_DURATION = isTest || pet ? 0 : 3000;
   let readyTimer = null;
 
   return {
+    t,
+    get state() {
+      return {
+        color: selectedColor,
+        colorName: PRESET_NAMES[selectedColor.toLowerCase()] ?? 'custom',
+        stiffness: values.stiffness,
+        damping: values.damping,
+        soundEnabled: sound.enabled,
+        language,
+      };
+    },
+    poke() { onPoke(); },
+    reset() { triggerReset(); },
+    toggleSound() { updateSoundUI(sound.toggle()); },
+    setLanguage: chooseLanguage,
+    pickColor(name) {
+      const swatch = swatches.find(element => element.dataset.colorName === name && !element.classList.contains('swatch-custom'));
+      if (swatch) swatch.click();
+    },
+    setParameter(id, value) {
+      const callback = id === 'stiffness' ? onStiffness : id === 'damping' ? onDamping : null;
+      if (!callback || !Number.isFinite(value)) return;
+      const clamped = Math.round(Math.max(0, Math.min(100, value)));
+      setRange(id, clamped);
+      callback(clamped / 100);
+    },
     setStatus(state = 'ready') {
       rendererState = state;
       renderStatus();
