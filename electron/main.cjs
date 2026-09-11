@@ -220,7 +220,6 @@ app.whenReady().then(() => {
   tray.setToolTip('Softie · 软乎乎');
   tray.on('click', () => {
     if (!mainWindow || mainWindow.isDestroyed()) createWindow();
-    else if (mainWindow.isVisible()) mainWindow.hide();
     else showPet();
   });
   createWindow();
