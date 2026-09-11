@@ -159,6 +159,13 @@ function resizePet(level) {
   }, true);
 }
 
+function showPet() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const bounds = placeNearDesktopCorner();
+  mainWindow.showInactive();
+  if (IS_HYPRLAND) setTimeout(() => { void placeHyprlandWindow(bounds); }, 150);
+}
+
 function createWindow() {
   const size = PET_SIZES[petSize];
   mainWindow = new BrowserWindow({
@@ -187,11 +194,7 @@ function createWindow() {
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.on('page-title-updated', event => event.preventDefault());
-  mainWindow.once('ready-to-show', () => {
-    const bounds = placeNearDesktopCorner();
-    mainWindow.showInactive();
-    if (IS_HYPRLAND) setTimeout(() => { void placeHyprlandWindow(bounds); }, 150);
-  });
+  mainWindow.once('ready-to-show', showPet);
   mainWindow.on('closed', () => { mainWindow = null; drag = null; dragRequested = false; });
 
   const entry = path.join(__dirname, '..', 'dist', 'index.html');
@@ -210,7 +213,7 @@ ipcMain.on('softie:drag', (event, payload) => {
   dragRequested = Boolean(payload?.active);
   if (dragRequested) void beginDrag(); else drag = null;
 });
-ipcMain.on('softie:ready', event => { if (owns(event)) mainWindow.showInactive(); });
+ipcMain.on('softie:ready', event => { if (owns(event)) showPet(); });
 
 app.whenReady().then(() => {
   tray = new Tray(path.join(__dirname, 'tray.png'));
@@ -218,7 +221,7 @@ app.whenReady().then(() => {
   tray.on('click', () => {
     if (!mainWindow || mainWindow.isDestroyed()) createWindow();
     else if (mainWindow.isVisible()) mainWindow.hide();
-    else mainWindow.showInactive();
+    else showPet();
   });
   createWindow();
   cursorTimer = setInterval(() => {
@@ -235,7 +238,7 @@ app.on('before-quit', () => {
 
 app.on('activate', () => {
   if (!mainWindow || mainWindow.isDestroyed()) createWindow();
-  else mainWindow.showInactive();
+  else showPet();
 });
 
 app.on('window-all-closed', () => {
