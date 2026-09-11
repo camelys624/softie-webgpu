@@ -202,7 +202,7 @@ function makeBadge() {
     });
     // Upgrade to AI-generated card artwork when loaded (WebP compressed)
     const loader = new THREE.TextureLoader();
-    loader.load('/textures/worker_badge.webp', (tex) => {
+    loader.load('./textures/worker_badge.webp', (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       cardMat.map = tex;
       cardMat.needsUpdate = true;
@@ -276,7 +276,7 @@ function makeCoffee() {
   let coffeeMat;
   if (isBrowser) {
     const loader = new THREE.TextureLoader();
-    const coffeeTex = loader.load('/textures/iced_coffee.webp');
+    const coffeeTex = loader.load('./textures/iced_coffee.webp');
     coffeeTex.colorSpace = THREE.SRGBColorSpace;
     coffeeMat = new THREE.MeshStandardNodeMaterial({
       map: coffeeTex,
@@ -348,7 +348,7 @@ function makeBandaid() {
   let frontMat;
   if (isBrowser) {
     const loader = new THREE.TextureLoader();
-    const bandaidTex = loader.load('/textures/bandaid.webp');
+    const bandaidTex = loader.load('./textures/bandaid.webp');
     bandaidTex.colorSpace = THREE.SRGBColorSpace;
     frontMat = new THREE.MeshStandardNodeMaterial({
       map: bandaidTex,
@@ -540,7 +540,7 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
 
   const isBrowser = typeof document !== 'undefined';
   const angerTexture = isBrowser
-    ? new THREE.TextureLoader().load('/textures/anger_mark.webp')
+    ? new THREE.TextureLoader().load('./textures/anger_mark.webp')
     : new THREE.DataTexture(new Uint8Array([255, 30, 30, 255]), 1, 1);
   angerTexture.colorSpace = THREE.SRGBColorSpace;
 
