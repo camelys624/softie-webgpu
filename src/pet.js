@@ -57,6 +57,7 @@ export function buildPetMenu(state, t) {
     { id: 'settings', label: t('settings') },
     { type: 'separator' },
     { id: 'poke', label: t('poke') },
+    { id: 'boss', label: t('bossSummon') },
     { id: 'reset', label: t('reset') },
     { type: 'separator' },
     { label: t('color'), submenu: colors },
@@ -72,7 +73,7 @@ export function buildPetMenu(state, t) {
 }
 
 /** Wires the desktop bridge (menu commands, global cursor, drag handle) to the page UI. */
-export function createPetController({ desktop, ui, size = 'medium', onSize }) {
+export function createPetController({ desktop, ui, size = 'medium', onSize, onBoss }) {
   let level = PET_SIZES[size] ? size : 'medium';
   const cursorListeners = new Set();
   const state = () => ({ ...ui.state, size: level });
@@ -85,6 +86,7 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
     const [kind, value] = String(id).split(':');
     if (id === 'settings') desktop?.send('softie:open-settings');
     else if (id === 'poke') ui.poke();
+    else if (id === 'boss') onBoss?.();
     else if (id === 'reset') ui.reset();
     else if (id === 'sound') ui.toggleSound();
     else if (id === 'quit') desktop?.send('softie:quit');
@@ -103,17 +105,8 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
 
   const handle = document.querySelector('#pet-handle');
   if (handle && desktop) handle.hidden = false;
-  const settingsButton = document.querySelector('#pet-settings');
-  if (settingsButton && desktop) {
-    settingsButton.hidden = false;
-    settingsButton.addEventListener('click', event => {
-      event.stopPropagation();
-      desktop.send('softie:open-settings');
-    });
-  }
 
-  const stage = document.querySelector('#stage');
-  if (stage && desktop) {
+  if (handle && desktop) {
     let dragPointer = null;
     let dragging = false;
     let startX = 0;
@@ -130,7 +123,6 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
         dragPointer !== null
         || event.button !== 0
         || !['mouse', 'pen'].includes(event.pointerType)
-        || settingsButton?.contains(event.target)
       ) return;
       dragPointer = event.pointerId;
       startX = event.clientX;
@@ -149,7 +141,9 @@ export function createPetController({ desktop, ui, size = 'medium', onSize }) {
       }
       event.preventDefault();
     };
-    stage.addEventListener('pointerdown', startDrag, true);
+    // Native window dragging is intentionally limited to the visible top handle.
+    // Body pointer events must remain available to the slime interaction logic.
+    handle.addEventListener('pointerdown', startDrag, true);
     window.addEventListener('pointermove', moveDrag, true);
     window.addEventListener('pointerup', endDrag, true);
     window.addEventListener('pointercancel', endDrag, true);

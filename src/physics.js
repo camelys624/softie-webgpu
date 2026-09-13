@@ -146,11 +146,11 @@ export class JellyPhysics {
     this._pinchTarget = 0;
   }
 
-  poke() {
-    this.velocity.y = Math.min(this.velocity.y + 2.45, 5.4);
-    this._squash.velocity = Math.max(this._squash.velocity - 3.1, -6);
-    this._oval.velocity += 0.48;
-    this._shearX.velocity += 0.7;
+  poke(strength = 1) {
+    this.velocity.y = Math.min(this.velocity.y + 2.45 * strength, 5.4);
+    this._squash.velocity = Math.max(this._squash.velocity - 3.1 * strength, -6);
+    this._oval.velocity += 0.48 * strength;
+    this._shearX.velocity += 0.7 * strength;
   }
 
   _validPoint(point) {

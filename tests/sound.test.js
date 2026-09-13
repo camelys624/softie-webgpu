@@ -8,6 +8,7 @@ test('soundFX works safely in headless environment without audio hardware', () =
   assert.doesNotThrow(() => sound.playPoke());
   assert.doesNotThrow(() => sound.playSquish());
   assert.doesNotThrow(() => sound.playBounce(1.5));
+  assert.doesNotThrow(() => sound.playPurify());
   assert.doesNotThrow(() => sound.playLand(2.2));
   assert.doesNotThrow(() => sound.playBubble(1.2));
   assert.doesNotThrow(() => sound.playWakeup());
@@ -96,6 +97,14 @@ test('soundFX correctly synthesizes procedural audio events when AudioContext ex
 
     sound.playSquish();
     sound.playBounce(1.2);
+    const beforePurify = createdNodes.filter(n => n.kind === 'oscillator').length;
+    sound.playPurify();
+    assert.equal(createdNodes.filter(n => n.kind === 'oscillator').length - beforePurify, 3);
+    const beforeMute = createdNodes.length;
+    sound.enabled = false;
+    sound.playPurify();
+    assert.equal(createdNodes.length, beforeMute, 'muted purification creates no audio voices');
+    sound.enabled = true;
     sound.playLand(2.5);
     sound.playBubble(1.1);
     sound.playWakeup();

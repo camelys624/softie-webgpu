@@ -65,7 +65,7 @@ function sanitizeMenu(items) {
 function installMenu(payload) {
   if (!Array.isArray(payload?.template)) return;
   latestMenuPayload = payload;
-  const quickIds = new Set(['settings', 'poke', 'reset', 'quit']);
+  const quickIds = new Set(['settings', 'poke', 'boss', 'reset', 'quit']);
   const quickItems = payload.template.filter(item => quickIds.has(item?.id));
   if (quickItems.length) {
     const quitIndex = quickItems.findIndex(item => item.id === 'quit');

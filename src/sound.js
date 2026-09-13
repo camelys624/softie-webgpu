@@ -203,6 +203,33 @@ class SoundFX {
     osc.stop(now + dur + 0.02);
   }
 
+  /** A soft mallet knock followed by two quiet, consonant purification chimes. */
+  playPurify() {
+    if (!this.enabled) return;
+    const ctx = this.init();
+    if (!ctx) return;
+    this.resume();
+    const now = ctx.currentTime;
+    for (const [frequency, endFrequency, delay, peak, duration] of [
+      [210, 105, 0, 0.38, 0.13],
+      [880, 880, 0.025, 0.105, 0.24],
+      [1320, 1320, 0.045, 0.055, 0.2],
+    ]) {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      const start = now + delay;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, start);
+      osc.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(this.filter);
+      osc.start(start);
+      osc.stop(start + duration + 0.015);
+    }
+  }
+
   /**
    * Bubble sound: Sweet harmonic pop for swatches and switches
    */

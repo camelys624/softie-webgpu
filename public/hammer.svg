@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="192" viewBox="0 0 176 192" fill="none">
+  <defs>
+    <linearGradient id="pink" x1="38" y1="24" x2="106" y2="89" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0f3"/><stop offset=".28" stop-color="#ffc2d4"/><stop offset=".7" stop-color="#ef96b6"/><stop offset="1" stop-color="#d77b9e"/></linearGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffdf0"/><stop offset=".55" stop-color="#ffedcf"/><stop offset="1" stop-color="#e5bc93"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff3c2"/><stop offset=".38" stop-color="#f6d17b"/><stop offset=".64" stop-color="#d9a548"/><stop offset="1" stop-color="#b78032"/></linearGradient>
+    <linearGradient id="wand" x1="69" y1="88" x2="91" y2="142" gradientUnits="userSpaceOnUse"><stop stop-color="#e2cdef"/><stop offset=".55" stop-color="#ae83c3"/><stop offset="1" stop-color="#805a9c"/></linearGradient>
+    <radialGradient id="gem" cx=".3" cy=".23" r=".8"><stop stop-color="#fff5fc"/><stop offset=".35" stop-color="#ffc4e0"/><stop offset=".75" stop-color="#ee91bc"/><stop offset="1" stop-color="#b869a7"/></radialGradient>
+    <clipPath id="grip"><rect x="73" y="85" width="17" height="61" rx="8"/></clipPath>
+  </defs>
+  <g transform="rotate(-28 88 90)" stroke-linejoin="round">
+    <rect x="73" y="78" width="17" height="69" rx="8" fill="url(#wand)" stroke="#9970ac" stroke-width="1.5"/>
+    <g clip-path="url(#grip)" stroke="#fff3dc" stroke-width="8"><path d="m69 92 26 17m-26 4 26 17m-26 4 26 17"/></g>
+    <ellipse cx="81.5" cy="144" rx="12" ry="4" fill="url(#gold)" stroke="#d0a253"/>
+    <circle cx="81.5" cy="157" r="13" fill="url(#gem)" stroke="#cc83b0" stroke-width="1.5"/>
+    <ellipse cx="77" cy="152" rx="4" ry="6" fill="#fff7fc" opacity=".9"/>
+    <path d="m86 163 4-4" stroke="#ffe4f3" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="81.5" cy="87" rx="13" ry="9" fill="url(#gold)" stroke="#d0a253"/>
+    <path d="M86 80a8 8 0 1 0 2 11c-7 2-11-5-2-11Z" fill="#fff3c4"/>
+    <rect x="31" y="24" width="101" height="58" rx="16" fill="url(#pink)" stroke="#dc8aa7" stroke-width="1.7"/>
+    <path d="M47 31h64" stroke="#fff5f7" stroke-width="5" stroke-linecap="round" opacity=".72"/>
+    <path d="M47 75h65" stroke="#c87298" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+    <rect x="25" y="23" width="12" height="60" rx="6" fill="url(#gold)"/>
+    <rect x="125" y="23" width="12" height="60" rx="6" fill="url(#gold)"/>
+    <rect x="17" y="24" width="14" height="58" rx="7" fill="url(#cream)" stroke="#eac7a0" stroke-width="1.3"/>
+    <rect x="132" y="24" width="14" height="58" rx="7" fill="url(#cream)" stroke="#eac7a0" stroke-width="1.3"/>
+    <path d="M25 64C5 64 3 48 9 46c5-2 8 6 10 6C7 37 9 28 15 31c5 2 8 14 9 17-5-17-1-23 4-20 5 3 7 25 1 34Z" fill="url(#cream)" stroke="#e8c29b" stroke-width="1.3"/>
+    <path d="M138 64c20 0 22-16 16-18-5-2-8 6-10 6 12-15 10-24 4-21-5 2-8 14-9 17 5-17 1-23-4-20-5 3-7 25-1 34Z" fill="url(#cream)" stroke="#e8c29b" stroke-width="1.3"/>
+    <circle cx="81.5" cy="53" r="23" fill="url(#gold)" stroke="#ba873c" stroke-width="1"/>
+    <circle cx="81.5" cy="53" r="20" fill="#fff3dc" stroke="#fff8e8" stroke-width="1.5"/>
+    <path d="m81.5 36 5.2 10.5 11.6 1.7-8.4 8.2 2 11.6-10.4-5.5L71.1 68l2-11.6-8.4-8.2 11.6-1.7Z" fill="url(#gold)" stroke="#d4a14b" stroke-width="1.2"/>
+    <path d="m81.5 36 0 18-16.8-5.8 11.6-1.7Z" fill="#fff0b9" opacity=".85"/>
+    <path d="m81.5 54 8.4 2.4 2 11.6-10.4-5.5Z" fill="#bd8538" opacity=".35"/>
+  </g>
+</svg>

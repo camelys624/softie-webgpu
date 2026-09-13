@@ -6,6 +6,7 @@ import { setupUI } from './ui.js';
 import { createPetController, gazeFromCursor, isPetMode, petCamera, PET_BOUNDS, petSizeFromSearch } from './pet.js';
 import { sound } from './sound.js';
 import { RageMeter } from './rage-meter.js';
+import { setupBoss } from './boss-view.js';
 import './style.css';
 
 const petMode = isPetMode(location.search);
@@ -15,6 +16,7 @@ const physics = new JellyPhysics();
 if (petMode) physics.setBounds(PET_BOUNDS);
 const rageMeter = petMode ? null : new RageMeter();
 let slime, studio, ready = false;
+let boss;
 let isDizzyPending = false;
 let lastSnoreTime = 0;
 let lastActivity = performance.now();
@@ -46,6 +48,7 @@ let rapidPokeCount = 0;
 
 function poke() {
   if (!ready) return;
+  if (boss?.encounter.active) { boss.hit(); return; }
   const now = performance.now();
   lastActivity = now;
 
@@ -94,6 +97,7 @@ const ui = setupUI({
   onDamping: damping => physics.setConfig({ damping }),
   onPoke: poke,
   onReset: () => {
+    boss?.reset();
     isDizzyPending = false;
     physics.reset();
     slime?.setColor('#f17fa9');
@@ -117,6 +121,7 @@ const petController = petMode ? createPetController({
   desktop,
   ui,
   size: initialPetSize,
+  onBoss: () => boss?.summon(),
   onSize: level => desktop?.send('softie:resize', { level }),
 }) : null;
 
@@ -479,12 +484,17 @@ async function start() {
   window.addEventListener('keydown', registerActivity, { passive: true });
 
   const ambientInterval = setInterval(() => {
-    if (!ready || document.hidden || pointerId !== null) return;
+    if (!ready || document.hidden || pointerId !== null || boss?.encounter.active) return;
     if (performance.now() - lastActivity > 12000 && !slime?.faceMotion.isSleeping) {
       sound.playAmbientBubble();
       lastActivity = performance.now() - 3000;
     }
   }, 3000);
+
+  boss = setupBoss({ scene, slime, physics, canvas, camera, ui, sound, pet: petMode,
+    canSpawn: () => ready && pointerId === null && stage.getAttribute('aria-busy') === 'false',
+    onRelease: () => { lastActivity = performance.now(); },
+  });
 
   let frames = 0, fps = 0, previous = performance.now(), windowStart = previous, windowFrames = 0;
   let time = 0, slowWindows = 0;
@@ -502,17 +512,18 @@ async function start() {
     time += dt;
 
     // Sleep mode when inactive for 15 seconds
-    if (pointerId === null && !slime.faceMotion.isSleeping && now - lastActivity > 15000 && slime.faceMotion.anger < 0.25) {
+    if (!boss.encounter.active && pointerId === null && !slime.faceMotion.isSleeping && now - lastActivity > 15000 && slime.faceMotion.anger < 0.25) {
       slime.faceMotion.fallAsleep();
     }
 
     // Gentle rhythmic snoring when sleeping
-    if (slime.faceMotion.isSleeping && now - lastSnoreTime > 2400) {
+    if (!boss.encounter.active && slime.faceMotion.isSleeping && now - lastSnoreTime > 2400) {
       lastSnoreTime = now;
       sound.playSnore();
     }
 
     physics.update(dt);
+    boss.update(now);
     slime.update(time);
     studio.update(physics.position);
     ui.setMood(slime.faceMotion.mood);
@@ -532,6 +543,7 @@ async function start() {
   renderer.backend.device.lost.then(info => {
     if (info.reason === 'destroyed') return;
     ready = false;
+    boss.reset();
     renderer.setAnimationLoop(null);
     ui.showError('deviceLost');
   });
@@ -545,10 +557,11 @@ async function start() {
     drawCalls: renderer.info.render.drawCalls, triangles: renderer.info.render.triangles,
     memory: { ...renderer.info.memory },
     face: { expression: slime.faceMotion.expression, ...slime.faceMotion.state },
+    boss: { active: boss.encounter.active, hits: boss.encounter.hits, phase: boss.pose?.phase ?? 'idle', deadline: boss.encounter.deadline, nextAt: boss.encounter.nextAt },
     physics: { ...physics.diagnostics, center: { ...physics.position }, dragging: pointerId !== null },
   });
   if (import.meta.env.DEV || new URLSearchParams(location.search).has('test')) {
-    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera, rageMeter };
+    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera, rageMeter, boss };
   }
   window.addEventListener('pagehide', () => {
     renderer.setAnimationLoop(null); observer.disconnect();
@@ -557,7 +570,7 @@ async function start() {
     document.documentElement.removeEventListener('pointerleave', clearGaze);
     reducedMotion.removeEventListener('change', syncMotionPreference);
     removePetCursor();
-    slime.dispose(); studio.dispose(); renderer.dispose(); rageMeter?.dispose();
+    boss.dispose(); slime.dispose(); studio.dispose(); renderer.dispose(); rageMeter?.dispose();
   }, { once: true });
 }
 

@@ -60,7 +60,11 @@ test('pet menu reflects state and controller routes native commands', () => {
     assert.equal(menu.find(item => item.id === 'sound').checked, true);
 
     const sizes = [];
-    const controller = createPetController({ desktop, ui, size: 'medium', onSize: value => sizes.push(value) });
+    let bossSummons = 0;
+    const controller = createPetController({ desktop, ui, size: 'medium', onSize: value => sizes.push(value), onBoss: () => bossSummons++ });
+    assert.ok(menu.some(item => item.id === 'boss'));
+    assert.equal(controller.run('boss'), true);
+    assert.equal(bossSummons, 1);
     assert.equal(controller.run('settings'), true);
     assert.equal(controller.run('poke'), true);
     assert.equal(controller.run('color:grape'), true);
@@ -79,7 +83,7 @@ test('pet menu reflects state and controller routes native commands', () => {
     globalThis.window = originalWindow;
   }
 });
-test('desktop pet exposes settings and moves the native window after a drag threshold', () => {
+test('desktop pet exposes a top drag handle without hijacking body interaction', () => {
   const sent = [];
   const windowListeners = new Map();
   const windowEvents = [];
@@ -106,7 +110,6 @@ test('desktop pet exposes settings and moves the native window after a drag thre
   };
   const stage = makeElement();
   const handle = makeElement();
-  const settings = makeElement();
   const fakeWindow = {
     addEventListener(type, listener) {
       const entries = windowListeners.get(type) ?? [];
@@ -135,22 +138,25 @@ test('desktop pet exposes settings and moves the native window after a drag thre
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const originalEvent = globalThis.Event;
-  globalThis.document = { querySelector: selector => ({ '#stage': stage, '#pet-handle': handle, '#pet-settings': settings }[selector] ?? null) };
+  globalThis.document = { querySelector: selector => ({ '#stage': stage, '#pet-handle': handle }[selector] ?? null) };
   globalThis.window = fakeWindow;
   globalThis.Event = class { constructor(type) { this.type = type; } };
   try {
     createPetController({ desktop, ui });
     assert.equal(handle.hidden, false);
-    assert.equal(settings.hidden, false);
 
-    stage.emit('pointerdown', { button: 0, pointerType: 'mouse', pointerId: 7, clientX: 100, clientY: 100, target: stage });
+    // Clicking the slime body must not start native window dragging.
+    stage.emit('pointerdown', { button: 0, pointerType: 'mouse', pointerId: 6, clientX: 100, clientY: 100, target: stage });
+    fakeWindow.emit('pointermove', { pointerId: 6, clientX: 115, clientY: 100, preventDefault() {} });
+    fakeWindow.emit('pointerup', { pointerId: 6 });
+
+    // Only the short top handle starts native window dragging.
+    handle.emit('pointerdown', { button: 0, pointerType: 'mouse', pointerId: 7, clientX: 100, clientY: 100, target: handle });
     fakeWindow.emit('pointermove', { pointerId: 7, clientX: 115, clientY: 100, preventDefault() {} });
     fakeWindow.emit('pointerup', { pointerId: 7 });
-    settings.emit('click', { stopPropagation() {} });
 
     assert.deepEqual(sent.filter(message => message.channel === 'softie:drag').map(message => message.payload.active), [true, false]);
     assert.ok(windowEvents.includes('softie:window-drag-start'));
-    assert.ok(sent.some(message => message.channel === 'softie:open-settings'));
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;

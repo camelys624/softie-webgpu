@@ -3,6 +3,59 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { makeSlime } from '../src/slime.js';
 import { JellyPhysics } from '../src/physics.js';
+import { makeBoss } from '../src/boss-model.js';
+
+test('boss costume retains the jelly and mouth and follows the same deformation field', () => {
+  const physics = new JellyPhysics();
+  const slime = makeSlime(physics);
+  const costume = makeBoss(physics);
+  const body = slime.body.geometry;
+  const color = slime.gel.attenuationColor.clone();
+  const pose = { weight: 1, fear: 0, shock: 0, exit: 0, point: 0, recoil: 0, shake: 0 };
+  slime.setBossPose(pose);
+  slime.update(0);
+  assert.equal(slime.group.visible, true);
+  assert.equal(slime.body.geometry, body);
+  assert.equal(slime.face.geometry.drawRange.start, 0);
+  assert.equal(slime.bossPose, pose);
+  assert.deepEqual(slime.gel.attenuationColor, color);
+  physics.poke(0.28);
+  for (let i = 0; i < 12; i++) physics.update(1 / 120);
+  costume.update();
+  const expected = {};
+  for (const mesh of costume.group.children) {
+    if (mesh.userData.rig !== 'clothes') continue;
+    const rest = mesh.geometry.userData.rest;
+    const positions = mesh.geometry.attributes.position.array;
+    for (let n = 0; n < rest.length; n += 99) {
+      physics.deform(rest[n], rest[n + 1], rest[n + 2], expected);
+      assert.ok(Math.abs(positions[n] - expected.x) < 1e-6);
+      assert.ok(Math.abs(positions[n + 1] - expected.y) < 1e-6);
+      assert.ok(Math.abs(positions[n + 2] - expected.z) < 1e-6);
+    }
+  }
+  const brows = costume.group.children.filter(mesh => mesh.name === 'boss-brow');
+  const hands = costume.group.children.filter(mesh => mesh.name === 'boss-claw');
+  assert.equal(brows.length, 2);
+  assert.equal(hands.length, 2);
+  const backY = hands[0].geometry.attributes.position.getY(0);
+  costume.update({ ...pose, fear: 1 });
+  assert.ok(hands[0].geometry.attributes.position.getY(0) > backY + 0.5, 'panicked hands rise to protect the head');
+  costume.update({ ...pose, exit: 0.5 });
+  assert.equal(costume.group.getObjectByName('boss-trousers').material.opacity, 1, 'flying trousers stay readable until the last dissolve');
+  assert.ok(costume.group.getObjectByName('boss-exit-cloud').visible);
+  const trousers = costume.group.getObjectByName('boss-trousers');
+  trousers.geometry.computeBoundingBox();
+  const box = trousers.geometry.boundingBox;
+  assert.ok(box.min.x > 0.5 && box.min.y > 2.2, 'outfit has detached above and to the right of the pet');
+  costume.update({ ...pose, exit: 0.5 }, true);
+  assert.equal(costume.group.getObjectByName('boss-exit-cloud').visible, false);
+  slime.setBossPose(null);
+  slime.update(0.1);
+  assert.equal(slime.bossPose, null);
+  assert.deepEqual(slime.face.geometry.drawRange, { start: 0, count: Infinity });
+  costume.dispose(); slime.dispose();
+});
 
 test('body and face use the exact same point deformation during a grab', () => {
   const physics = new JellyPhysics();

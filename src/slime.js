@@ -7,13 +7,13 @@ const HEIGHT = 2.36;
 const WIDTH = 1.66;
 const DEPTH = 1.18;
 
-function radiusAt(y) {
+export function radiusAt(y) {
   const t = Math.pow(THREE.MathUtils.clamp((y - 0.035) / HEIGHT, 0, 1), 1 / 1.28);
   const c = t * 2 - 1;
   return Math.pow(Math.sqrt(Math.max(0, 1 - c * c)), 0.82) * (1 - 0.07 * c);
 }
 
-function frontAt(x, y) {
+export function frontAt(x, y) {
   const r = radiusAt(y);
   return DEPTH * Math.sqrt(Math.max(0, r * r - (x / WIDTH) ** 2));
 }
@@ -605,6 +605,7 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
   const matrix = new THREE.Matrix4();
   const geometries = [body.geometry, face.geometry];
   let baseColorHex = '#f17fa9';
+  let bossPose = null;
   let baseGlassTint = glassTint(baseColorHex);
   const rageGlassTint = glassTint('#ff1e42');
 
@@ -612,6 +613,9 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
     group, body, face, bubbles, gel, faceMotion, dizzyStars: dizzyStarsGroup,
     angerCross: angerCrossMesh, sleepBubble: sleepBubbleMesh,
     accessories,
+    setBossPose(pose) { bossPose = pose; },
+    get bossPose() { return bossPose; },
+    get color() { return baseColorHex; },
     setAccessory(type = 'none') {
       currentAccessory = accessories[type] ? type : 'none';
       badge.group.visible = currentAccessory === 'badge';
@@ -648,7 +652,7 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
       const expression = faceMotion.update(time);
 
       // Dynamic heat warning tint (thermal anger effect)
-      const angerLevel = expression.angerLevel ?? 0;
+      const angerLevel = bossPose ? 0 : expression.angerLevel ?? 0;
       if (angerLevel > 0.02) {
         gel.attenuationColor.copy(baseGlassTint).lerp(rageGlassTint, angerLevel * 0.82);
       } else {
@@ -712,6 +716,37 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
           y -= sleepy * 0.022;
 
           y += Math.sin(x * 42 + time * 20) * 0.024 * dizzy - 0.015 * dizzy;
+        }
+        if (bossPose) {
+          const { weight, fear, shock, relief = 0 } = bossPose;
+          let bx = restFace[n], by = restFace[n + 1], bd = faceDepth[i];
+          if (i < eyeVertices * 2) {
+            const left = i < eyeVertices, cx = left ? -0.41 : 0.41;
+            const openness = Math.max(fear, shock);
+            // A straight upper lid over the familiar black eye, not a new pair of eyes.
+            const lid = 1.21 + (left ? -0.14 : 0.17) * (bx - cx);
+            const halfLidded = Math.min(by, lid);
+            by = halfLidded + (by - halfLidded) * openness;
+            by += openness * 0.015;
+            // The last storyboard panel has two curved, closed smiling eyes.
+            const smileEye = 1.2 + (restFace[n + 1] - 1.2) * 0.10
+              + 0.09 * (1 - ((bx - cx) / 0.128) ** 2);
+            by += (smileEye - by) * relief;
+          } else {
+            const m = (i - eyeVertices * 2) * 3;
+            const open = Math.max(shock * 0.75, fear * 0.65);
+            bx += (mouthTarget[m] - bx) * open;
+            by += (mouthTarget[m + 1] - by) * open;
+            bd += (mouthDepth[m / 3] - bd) * open;
+            by += (1 - open) * (bx * 0.32 + 0.016);
+            bx += (1 - open) * 0.02;
+            bx += (restFace[n] - bx) * relief;
+            by += (restFace[n + 1] - by) * relief;
+            bd += (faceDepth[i] - bd) * relief;
+          }
+          x += (bx - x) * weight;
+          y += (by - y) * weight;
+          depth += (bd - depth) * weight;
         }
         posed[n] = x; posed[n + 1] = y; posed[n + 2] = frontAt(x, y) + depth;
       }
@@ -785,7 +820,7 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
       }
 
       // Update 3D Anger Cross popping near forehead right temple
-      const angerEffect = Math.max(angry, angerLevel, faceMotion.anger);
+      const angerEffect = bossPose ? 0 : Math.max(angry, angerLevel, faceMotion.anger);
       if (angerEffect <= 0.10) {
         if (angerCrossMesh.visible) angerCrossMesh.visible = false;
       } else {
@@ -827,7 +862,7 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
       }
 
       // Update 3D Sleep Bubble expanding & contracting with breathing rhythm
-      if (sleepy <= 0.05) {
+      if (bossPose || sleepy <= 0.05) {
         if (sleepBubbleMesh.visible) sleepBubbleMesh.visible = false;
       } else {
         sleepBubbleMesh.visible = true;

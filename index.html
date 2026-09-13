@@ -128,12 +128,6 @@
         </div>
         <canvas id="slime-canvas" tabindex="0" aria-label="互动史莱姆：按住揉捏，拖动拎起，松手回弹。也可以按空格键戳一下。" data-i18n-label="canvas" aria-describedby="stage-help"></canvas>
         <button id="pet-handle" class="pet-handle" type="button" aria-label="拖动这里移动" title="拖动这里移动" data-i18n-label="petDrag" data-i18n-title="petDrag" hidden><span aria-hidden="true"></span></button>
-        <button id="pet-settings" class="pet-settings" type="button" aria-label="打开设置" title="打开设置" data-i18n-label="petSettings" data-i18n-title="petSettings" hidden>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 3.5 13.4 5a7.7 7.7 0 0 1 2.1.9l2-.3 1.6 1.6-.3 2a7.7 7.7 0 0 1 .9 2.1l1.5 1.4v2.3l-1.5 1.4a7.7 7.7 0 0 1-.9 2.1l.3 2-1.6 1.6-2-.3a7.7 7.7 0 0 1-2.1.9L12 20.5l-2.3-1.4a7.7 7.7 0 0 1-2.1-.9l-2 .3-1.6-1.6.3-2a7.7 7.7 0 0 1-.9-2.1L2 11.4V9.1l1.4-1.4a7.7 7.7 0 0 1 .9-2.1l-.3-2 1.6-1.6 2 .3a7.7 7.7 0 0 1 2.1-.9L12 3.5Z" />
-            <circle cx="12" cy="12.2" r="2.8" />
-          </svg>
-        </button>
         <div id="unsupported" class="stage-message stage-error" role="alert" hidden>
           <h2 data-i18n="waiting">等待 WebGPU</h2>
           <p id="error-message"></p>
@@ -194,6 +188,9 @@
           <div class="actions">
             <button id="poke" class="poke-button" type="button" title="戳一下 · 空格键" data-i18n-title="pokeTitle"><span data-i18n="poke">戳一下</span><span class="sparkle" aria-hidden="true">✦</span></button>
             <button id="reset" class="reset-button" type="button" data-i18n="reset">恢复默认</button>
+          </div>
+          <div class="boss-invite">
+            <button id="boss-summon" type="button" data-i18n="bossSummon" title="随机附身 · 玩具锤解压" data-i18n-title="bossNote" disabled>老板来了</button>
           </div>
         </fieldset>
       </aside>

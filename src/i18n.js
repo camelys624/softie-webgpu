@@ -1,5 +1,6 @@
 export const messages = {
   zh: {
+    bossSummon: '老板来了', bossNote: '随机附身 · 玩具锤解压',
     title: 'softie · 软乎乎。', description: '一团软乎乎的 WebGPU 史莱姆。捏一捏，拖一拖，把今天放轻松。',
     home: 'softie 首页', tagline: '留一点空间，放轻松', heading: '软乎乎。', intro: '捏一捏，把今天放轻松。',
     language: '界面语言', chinese: '中文', english: 'English 英文', soundToggle: '音效开关', soundOn: '音效开启', soundOff: '静音',
@@ -15,7 +16,7 @@ export const messages = {
     nativeRequired: '需要原生 WebGPU 渲染器。', deviceLost: 'WebGPU 设备连接已中断，请刷新页面重新连接。',
     initFailed: 'WebGPU 启动失败，请刷新页面，或使用支持 WebGPU 的新版浏览器。',
     petSound: '音效', petSize: '大小', petSizeSmall: '小', petSizeMedium: '中', petSizeLarge: '大', petDefault: '默认',
-    petQuit: '退出', petDrag: '拖动这里移动', petSettings: '打开设置',
+    petQuit: '退出', petDrag: '拖动这里移动',
     moodChill: '佛系放空', moodAnnoyed: '有点烦躁', moodRage: '暴怒红温！', moodSleepy: '摸鱼打盹中…',
     moodLabel: '心情状态', workerQuote: '在工位上，我是一团没有骨头的果冻。', pokeAngry: '别戳了！',
     accessory: '打工装扮', accNone: '素颜', accBadge: '工牌', accCoffee: '冰美式', accBandaid: '创可贴',
@@ -23,6 +24,7 @@ export const messages = {
     rageTitle: '打工怨气槽', rageChill: '摸鱼放空中', rageAnnoyed: '有点上火', rageHot: '暴怒升温', rageMax: 'MAX 怨气爆表!', rageSleepy: '呼噜充能中…', rageMeterLabel: '打工怨气进度条',
   },
   en: {
+    bossSummon: 'Summon boss', bossNote: 'Random visits · Bonk to unwind',
     title: 'softie · Soft & squishy.', description: 'A soft little WebGPU slime. Squish, stretch, and let the day feel lighter.',
     home: 'softie home', tagline: 'A LITTLE ROOM TO PLAY', heading: 'Softie.', intro: 'A little squish. A lighter day.',
     language: 'Interface language', chinese: '中文 Chinese', english: 'English', soundToggle: 'Sound toggle', soundOn: 'Sound on', soundOff: 'Muted',
@@ -38,7 +40,7 @@ export const messages = {
     nativeRequired: 'A native WebGPU renderer is required.', deviceLost: 'The WebGPU device disconnected. Refresh the page to reconnect.',
     initFailed: 'WebGPU did not start. Refresh the page or use a recent browser that supports WebGPU.',
     petSound: 'Sound', petSize: 'Size', petSizeSmall: 'Small', petSizeMedium: 'Medium', petSizeLarge: 'Large', petDefault: 'Default',
-    petQuit: 'Quit', petDrag: 'Drag here to move', petSettings: 'Open settings',
+    petQuit: 'Quit', petDrag: 'Drag here to move',
     moodChill: 'Chill & Cozy', moodAnnoyed: 'Slightly Annoyed', moodRage: 'Raging Hot!', moodSleepy: 'Slacking & Napping…',
     moodLabel: 'Current Mood', workerQuote: 'At work, I am just a boneless jelly.', pokeAngry: 'Stop poking!',
     accessory: 'Accessories', accNone: 'Clean', accBadge: 'ID Badge', accCoffee: 'Iced Coffee', accBandaid: 'Band-aid',
