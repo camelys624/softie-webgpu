@@ -90,19 +90,6 @@ export function makeBoss(physics) {
     }
     line([[-0.12, 0, 0], [0, 0.035, 0], [0.12, 0.025, 0]], 0.012, 'ink', 'boss-brow', side < 0 ? 'brow-left' : 'brow-right');
   }
-  const starShape = new THREE.Shape();
-  for (let i = 0; i < 10; i++) {
-    const r = i % 2 ? 0.037 : 0.085, a = Math.PI / 2 + i * Math.PI / 5;
-    if (i) starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    else starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  starShape.closePath();
-  const effects = [];
-  for (let i = 0; i < 5; i++) {
-    const star = add(new THREE.ShapeGeometry(starShape), 'gold', 'boss-hit-star', 'effect');
-    star.userData.effectIndex = i;
-    effects.push(star);
-  }
   const departure = makeBossExit();
   group.add(departure.group);
   const point = new THREE.Vector3();
@@ -118,7 +105,7 @@ export function makeBoss(physics) {
       const detach = reducedMotion ? 0 : flight.assemble;
       const guard = Math.max(fear, shock * 0.4);
       for (const [name, material] of Object.entries(materials)) {
-        material.opacity = ['ink', 'foot'].includes(name) || reducedMotion ? 1 - (pose.relief ?? exit) : flight.opacity;
+        material.opacity = ['ink', 'foot'].includes(name) || reducedMotion ? 1 - Math.max(pose.relief ?? exit, pose.sadness ?? 0) : flight.opacity;
         material.depthTest = exit === 0 || ['ink', 'foot'].includes(name) || reducedMotion;
       }
       for (const mesh of meshes) {
@@ -182,16 +169,7 @@ export function makeBoss(physics) {
         mesh.geometry.computeVertexNormals();
         mesh.geometry.computeBoundingSphere();
       }
-      for (const effect of effects) {
-        const i = effect.userData.effectIndex;
-        const strength = exit ? 0 : recoil;
-        effect.visible = !reducedMotion && strength > 0.01;
-        const a = i / 5 * Math.PI * 2 + recoil * 0.4;
-        effect.position.set(Math.cos(a) * 0.65, 2.28 + Math.sin(a) * 0.25, 1.32);
-        effect.scale.setScalar(strength);
-        effect.rotation.z = a;
-      }
-      departure.update(exit, reducedMotion);
+      departure.update(exit, reducedMotion, !pose.sadness);
     },
     dispose() { departure.dispose(); meshes.forEach(mesh => mesh.geometry.dispose()); Object.values(materials).forEach(material => material.dispose()); group.removeFromParent(); },
   };

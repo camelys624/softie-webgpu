@@ -7,6 +7,7 @@ import { createPetController, gazeFromCursor, isPetMode, petCamera, PET_BOUNDS, 
 import { sound } from './sound.js';
 import { RageMeter } from './rage-meter.js';
 import { setupBoss } from './boss-view.js';
+import { createMoodBubble } from './speech-bubble.js';
 import './style.css';
 
 const petMode = isPetMode(location.search);
@@ -17,6 +18,7 @@ if (petMode) physics.setBounds(PET_BOUNDS);
 const rageMeter = petMode ? null : new RageMeter();
 let slime, studio, ready = false;
 let boss;
+let moodBubble;
 let isDizzyPending = false;
 let lastSnoreTime = 0;
 let lastActivity = performance.now();
@@ -51,6 +53,14 @@ function poke() {
   if (boss?.encounter.active) { boss.hit(); return; }
   const now = performance.now();
   lastActivity = now;
+
+  if (slime.faceMotion.comfort()) {
+    rapidPokeCount = 0;
+    lastPokeTime = 0;
+    physics.poke(0.28);
+    sound.playHappyPurr();
+    return;
+  }
 
   if (slime?.faceMotion.isSleeping) {
     rapidPokeCount = 0;
@@ -104,6 +114,7 @@ const ui = setupUI({
     studio?.setColor('#f17fa9');
     slime?.setAccessory('none');
     slime?.faceMotion.reset();
+    moodBubble?.reset();
     ui.setMood('chill');
     rageMeter?.reset();
   },
@@ -497,6 +508,8 @@ async function start() {
   });
 
   let frames = 0, fps = 0, previous = performance.now(), windowStart = previous, windowFrames = 0;
+  moodBubble = createMoodBubble({ face: slime.faceMotion, ui, physics, camera, canvas, pet: petMode,
+    isBossActive: () => boss.encounter.active });
   let time = 0, slowWindows = 0;
   const frameTimes = [];
   slime.update(0);
@@ -525,8 +538,9 @@ async function start() {
     physics.update(dt);
     boss.update(now);
     slime.update(time);
+    moodBubble.update(now);
     studio.update(physics.position);
-    ui.setMood(slime.faceMotion.mood);
+    ui.setMood(slime.faceMotion.mood, slime.faceMotion.reassured);
     rageMeter?.update(dt, slime.faceMotion.anger, slime.faceMotion.mood, slime.faceMotion.isSleeping);
     renderer.render(scene, camera);
     frames++; windowFrames++;
@@ -556,12 +570,14 @@ async function start() {
     fps, frames, dpr, frameTimes: [...frameTimes],
     drawCalls: renderer.info.render.drawCalls, triangles: renderer.info.render.triangles,
     memory: { ...renderer.info.memory },
-    face: { expression: slime.faceMotion.expression, ...slime.faceMotion.state },
+    face: { expression: slime.faceMotion.expression, ...slime.faceMotion.state,
+      mood: slime.faceMotion.mood, sadnessCount: slime.faceMotion.sadnessCount,
+      comfortDuration: slime.faceMotion.comfortDuration, comfortElapsed: slime.faceMotion.comfortElapsed },
     boss: { active: boss.encounter.active, hits: boss.encounter.hits, phase: boss.pose?.phase ?? 'idle', deadline: boss.encounter.deadline, nextAt: boss.encounter.nextAt },
     physics: { ...physics.diagnostics, center: { ...physics.position }, dragging: pointerId !== null },
   });
   if (import.meta.env.DEV || new URLSearchParams(location.search).has('test')) {
-    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera, rageMeter, boss };
+    window.__SOFTIE__ = { getDiagnostics, physics, renderer, slime, studio, camera, rageMeter, boss, sound };
   }
   window.addEventListener('pagehide', () => {
     renderer.setAnimationLoop(null); observer.disconnect();
@@ -570,7 +586,7 @@ async function start() {
     document.documentElement.removeEventListener('pointerleave', clearGaze);
     reducedMotion.removeEventListener('change', syncMotionPreference);
     removePetCursor();
-    boss.dispose(); slime.dispose(); studio.dispose(); renderer.dispose(); rageMeter?.dispose();
+    moodBubble.dispose(); boss.dispose(); slime.dispose(); studio.dispose(); renderer.dispose(); rageMeter?.dispose();
   }, { once: true });
 }
 

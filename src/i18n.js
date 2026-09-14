@@ -1,5 +1,8 @@
 export const messages = {
   zh: {
+    bubbleChill: '慢慢来，今天也辛苦了。', bubbleAnnoyed: '先缓缓，工位要冒烟了。', bubbleRage: '这合理吗？！', bubbleSleepy: '我眯一会儿，你帮我望风。',
+    moodHappy: '开心，老板退散！', rageHappy: '终于清净了，摸会儿鱼。',
+    moodSad: '有点沮丧…', moodRecovering: '慢慢缓过来…', rageSad: '怎么又不算数了…', rageRecovering: '还好，你懂我。', rageReassured: '他说的不算，我做得很好。',
     bossSummon: '老板来了', bossNote: '随机附身 · 玩具锤解压',
     title: 'softie · 软乎乎。', description: '一团软乎乎的 WebGPU 史莱姆。捏一捏，拖一拖，把今天放轻松。',
     home: 'softie 首页', tagline: '留一点空间，放轻松', heading: '软乎乎。', intro: '捏一捏，把今天放轻松。',
@@ -24,6 +27,9 @@ export const messages = {
     rageTitle: '打工怨气槽', rageChill: '摸鱼放空中', rageAnnoyed: '有点上火', rageHot: '暴怒升温', rageMax: 'MAX 怨气爆表!', rageSleepy: '呼噜充能中…', rageMeterLabel: '打工怨气进度条',
   },
   en: {
+    bubbleChill: 'Take it easy. We did enough today.', bubbleAnnoyed: 'A minute. My desk is overheating.', bubbleRage: 'How is that fair?!', bubbleSleepy: 'Cover for me. Just a little nap.',
+    moodHappy: 'Happy! Boss banished!', rageHappy: 'Finally, some peace. Break time.',
+    moodSad: 'Feeling Down…', moodRecovering: 'Feeling Better…', rageSad: 'Moving the goalposts again…', rageRecovering: 'At least you get me.', rageReassured: 'He’s wrong. I did good work.',
     bossSummon: 'Summon boss', bossNote: 'Random visits · Bonk to unwind',
     title: 'softie · Soft & squishy.', description: 'A soft little WebGPU slime. Squish, stretch, and let the day feel lighter.',
     home: 'softie home', tagline: 'A LITTLE ROOM TO PLAY', heading: 'Softie.', intro: 'A little squish. A lighter day.',

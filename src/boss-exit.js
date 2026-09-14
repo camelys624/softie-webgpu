@@ -112,7 +112,7 @@ export function makeBossExit() {
   }
   return {
     group,
-    update(exit, reducedMotion) {
+    update(exit, reducedMotion, celebrate = true) {
       const motion = exitMotion(exit);
       group.visible = !reducedMotion && motion.smoke > 0.001;
       cloud.position.set(motion.x, motion.y, 0);
@@ -124,6 +124,7 @@ export function makeBossExit() {
       curlMaterial.opacity = motion.smoke * 0.72;
       goldMaterial.opacity = smooth((exit - 0.25) / 0.20) * motion.opacity;
       for (const star of stars) star.rotation.z = (1 - motion.flight) * 0.3;
+      for (const child of group.children) if (child.name === 'boss-relief-ray') child.visible = celebrate;
     },
     dispose() { smokeTexture.dispose(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); },
   };

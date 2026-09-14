@@ -11,6 +11,10 @@
     "test": "node --test tests/boss.test.js tests/face-motion.test.js tests/i18n.test.js tests/pet.test.js tests/physics.test.js tests/rage-meter.test.js tests/slime.test.js tests/sound.test.js",
     "test:browser": "node tests/browser.mjs",
     "test:boss": "node tests/boss-browser.mjs",
+    "test:boss-audio": "node tests/boss-audio-browser.mjs",
+    "test:mood": "node tests/boss-mood-browser.mjs",
+    "test:bubbles": "node tests/bubbles-browser.mjs",
+    "test:anger": "node tests/anger-browser.mjs",
     "desktop": "npm run build && electron electron/main.cjs",
     "package:arch": "npm run build && makepkg --syncdeps --force"
   },

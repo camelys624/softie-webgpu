@@ -474,6 +474,25 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
   face.frustumCulled = false;
   group.add(face);
 
+  const browMaterial = black.clone();
+  browMaterial.roughness = 0.5;
+  const moodBrows = new THREE.Group();
+  moodBrows.name = 'mood-brows';
+  moodBrows.visible = false;
+  for (const side of [-1, 1]) {
+    const curve = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(-0.095, 0.008, 0), new THREE.Vector3(0, -0.014, 0), new THREE.Vector3(0.095, 0.008, 0));
+    const parts = [new THREE.TubeGeometry(curve, 16, 0.012, 8, false)];
+    for (const x of [-0.095, 0.095]) parts.push(new THREE.SphereGeometry(0.012, 8, 6).translate(x, 0.008, 0));
+    const brow = new THREE.Mesh(remember(mergeGeometries(parts)), browMaterial);
+    parts.forEach(g => g.dispose());
+    brow.userData.side = side;
+    brow.renderOrder = 3;
+    brow.frustumCulled = false;
+    moodBrows.add(brow);
+  }
+  group.add(moodBrows);
+
   // Air pockets use faint reflective shells, composited after the refractive gel.
   // This avoids magnifying small pockets into beads in the screen-space refraction.
   const bubbleGeometry = new THREE.SphereGeometry(1, 12, 8);
@@ -534,23 +553,22 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
   }
   group.add(dizzyStarsGroup);
 
-  // 3D Anger Cross: Glowing Neon Manga Sticker (Style 3 荧光爆燃发光能量贴图)
-  const angerMarkGeomRaw = new THREE.PlaneGeometry(0.35, 0.35);
-  const angerCrossGeom = remember(angerMarkGeomRaw);
-
-  const isBrowser = typeof document !== 'undefined';
-  const angerTexture = isBrowser
-    ? new THREE.TextureLoader().load('./textures/anger_mark.webp')
-    : new THREE.DataTexture(new Uint8Array([255, 30, 30, 255]), 1, 1);
-  angerTexture.colorSpace = THREE.SRGBColorSpace;
-
+  // Four rounded strokes match the small, hand-drawn forehead mark in the concept.
+  const crossParts = [];
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const curve = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(sx * 0.035, sy * 0.12, 0),
+      new THREE.Vector3(sx * 0.018, sy * 0.018, 0),
+      new THREE.Vector3(sx * 0.12, sy * 0.035, 0));
+    crossParts.push(new THREE.TubeGeometry(curve, 16, 0.016, 8, false));
+    for (const point of [curve.v0, curve.v2]) crossParts.push(new THREE.SphereGeometry(0.016, 8, 6).translate(point.x, point.y, 0));
+  }
+  const angerCrossGeom = mergeGeometries(crossParts);
+  crossParts.forEach(g => g.dispose());
   const angerMaterial = new THREE.MeshStandardNodeMaterial({
-    map: angerTexture,
-    emissiveMap: angerTexture,
-    emissive: new THREE.Color('#ff2200'),
-    emissiveIntensity: 0.85,
-    roughness: 0.18,
-    metalness: 0.05,
+    color: '#d74454',
+    roughness: 0.55,
+    metalness: 0,
     transparent: true,
     depthWrite: false,
     polygonOffset: true,
@@ -607,11 +625,11 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
   let baseColorHex = '#f17fa9';
   let bossPose = null;
   let baseGlassTint = glassTint(baseColorHex);
-  const rageGlassTint = glassTint('#ff1e42');
+  const rageGlassTint = glassTint('#fa6685');
 
   return {
     group, body, face, bubbles, gel, faceMotion, dizzyStars: dizzyStarsGroup,
-    angerCross: angerCrossMesh, sleepBubble: sleepBubbleMesh,
+    angerCross: angerCrossMesh, moodBrows, sleepBubble: sleepBubbleMesh,
     accessories,
     setBossPose(pose) { bossPose = pose; },
     get bossPose() { return bossPose; },
@@ -651,10 +669,17 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
       group.position.copy(physics.position);
       const expression = faceMotion.update(time);
 
-      // Dynamic heat warning tint (thermal anger effect)
-      const angerLevel = bossPose ? 0 : expression.angerLevel ?? 0;
+      const moodWeight = bossPose ? 0 : (1 - (expression.sad ?? 0)) * (1 - (expression.sleepy ?? 0))
+        * (1 - (expression.dizzy ?? 0)) * (1 - (expression.startle ?? 0));
+      const angerLevel = (expression.angerLevel ?? 0) * moodWeight;
+      const angryPose = Math.max(expression.angry ?? 0, THREE.MathUtils.smoothstep(angerLevel, 0.55, 0.8)) * moodWeight;
+      const annoyedPose = Math.max(expression.annoyed ?? 0, THREE.MathUtils.smoothstep(angerLevel, 0.28, 0.48)) * moodWeight;
+      const browWeight = Math.max(angryPose, annoyedPose);
+      // A little puff and warmth, while retaining the original translucent jelly.
+      const puffX = 1 + angryPose * 0.06, puffZ = 1 + angryPose * 0.02;
+      group.scale.set(puffX, 1 / (puffX * puffZ), puffZ);
       if (angerLevel > 0.02) {
-        gel.attenuationColor.copy(baseGlassTint).lerp(rageGlassTint, angerLevel * 0.82);
+        gel.attenuationColor.copy(baseGlassTint).lerp(rageGlassTint, angerLevel * 0.30);
       } else {
         gel.attenuationColor.copy(baseGlassTint);
       }
@@ -717,6 +742,25 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
 
           y += Math.sin(x * 42 + time * 20) * 0.024 * dizzy - 0.015 * dizzy;
         }
+        if (browWeight > 0) {
+          const rx = restFace[n], ry = restFace[n + 1];
+          let ex = rx, ey;
+          if (i < eyeVertices * 2) {
+            const side = i < eyeVertices ? -1 : 1;
+            const localX = rx - side * 0.41;
+            const tilt = THREE.MathUtils.lerp(side < 0 ? -0.08 : 0.24, side * 0.2, angryPose);
+            ey = Math.min(ry, 1.22 + localX * tilt);
+            ex -= 0.015 * (1 - angryPose);
+            // Keep blinking possible beneath the slanted upper lid.
+            ey = THREE.MathUtils.lerp(ey, 1.16 + (ry - 1.2) * 0.1, expression.blink);
+          } else {
+            ex = rx * 0.88;
+            ey = THREE.MathUtils.lerp(1.08 + (1.075 - ry) * 0.35 + rx * 0.18, 2 * 1.08 - ry, angryPose);
+          }
+          x += (ex - x) * browWeight;
+          y += (ey - y) * browWeight;
+          depth += (faceDepth[i] - depth) * browWeight;
+        }
         if (bossPose) {
           const { weight, fear, shock, relief = 0 } = bossPose;
           let bx = restFace[n], by = restFace[n + 1], bd = faceDepth[i];
@@ -748,6 +792,21 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
           y += (by - y) * weight;
           depth += (bd - depth) * weight;
         }
+        const sad = bossPose ? bossPose.sadness ?? 0 : expression.sad;
+        if (sad > 0) {
+          // Drooping outer eye corners and a small downturned mouth.
+          const rx = restFace[n], ry = restFace[n + 1];
+          if (i < eyeVertices * 2) {
+            const cx = i < eyeVertices ? -0.41 : 0.41;
+            const sy = 1.17 + (ry - 1.2) * 0.42 - (rx - cx) * Math.sign(cx) * 0.42;
+            x += (rx - x) * sad;
+            y += (sy - y) * sad;
+          } else {
+            x += (rx * 0.85 - x) * sad;
+            y += (2 * 1.111 - ry - 0.035 - y) * sad;
+          }
+          depth += (faceDepth[i] - depth) * sad;
+        }
         posed[n] = x; posed[n + 1] = y; posed[n + 2] = frontAt(x, y) + depth;
       }
       for (const geometry of geometries) {
@@ -760,6 +819,25 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
         }
         positions.needsUpdate = true;
         geometry.computeVertexNormals();
+      }
+
+      moodBrows.visible = browWeight > 0.01;
+      browMaterial.color.copy(black.color);
+      browMaterial.opacity = browWeight;
+      if (moodBrows.visible) for (const brow of moodBrows.children) {
+        const side = brow.userData.side;
+        const tilt = THREE.MathUtils.lerp(side < 0 ? 0.12 : 0.45, side * 0.48, angryPose);
+        const rest = brow.geometry.userData.rest;
+        const positions = brow.geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          const n = i * 3;
+          const x = side * 0.41 + rest[n];
+          const y = 1.40 + rest[n + 1] + rest[n] * tilt + (1 - angryPose) * (side > 0 ? 0.015 : 0);
+          physics.deform(x, y, frontAt(x, y) + 0.028 + rest[n + 2], p);
+          positions.setXYZ(i, p.x, p.y, p.z);
+        }
+        positions.needsUpdate = true;
+        brow.geometry.computeVertexNormals();
       }
 
       // Bubbles bubble faster as temperature/anger rises
@@ -819,46 +897,23 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
         }
       }
 
-      // Update 3D Anger Cross popping near forehead right temple
-      const angerEffect = bossPose ? 0 : Math.max(angry, angerLevel, faceMotion.anger);
+      // A quiet, rounded mark appears only for the full angry expression.
+      const angerEffect = angryPose;
       if (angerEffect <= 0.10) {
         if (angerCrossMesh.visible) angerCrossMesh.visible = false;
       } else {
         angerCrossMesh.visible = true;
         // Sample forehead right temple coordinates on the outer surface
-        const templeX = 0.40;
-        const templeY = 1.74;
+        const templeX = 0.70;
+        const templeY = 1.67;
         const templeZ = frontAt(templeX, templeY) + 0.045;
         physics.deform(templeX, templeY, templeZ, moodP);
 
-        // Heartbeat pulse rhythm: classic double-beat (lub-dub) pumping
-        const heartPhase = (time * 2.6) % 1.0;
-        let heartPulse = 0;
-        if (heartPhase < 0.16) {
-          heartPulse = Math.sin((heartPhase / 0.16) * Math.PI) * 0.36;
-        } else if (heartPhase >= 0.20 && heartPhase < 0.36) {
-          heartPulse = Math.sin(((heartPhase - 0.20) / 0.16) * Math.PI) * 0.20;
-        }
-
-        // High-frequency anger twitching and tremor
-        const jitterAngle = (Math.sin(time * 38) * 0.07 + Math.sin(time * 54) * 0.04) * angerEffect;
-        const jitterX = Math.sin(time * 44) * 0.006 * angerEffect;
-        const jitterY = Math.cos(time * 50) * 0.006 * angerEffect;
-
-        angerCrossMesh.position.set(moodP.x + jitterX, moodP.y + jitterY, moodP.z);
-
-        // Smooth pop-in scale modulated by heartbeat and anger intensity
+        angerCrossMesh.position.set(moodP.x, moodP.y, moodP.z);
         const popProgress = THREE.MathUtils.smoothstep(angerEffect, 0.10, 0.55);
-        const baseScale = popProgress * (0.85 + angerEffect * 0.35);
-        const crossScale = baseScale * (1 + heartPulse);
-        angerCrossMesh.scale.setScalar(crossScale);
-
-        // Normal alignment (tilts back with forehead curvature) + manga tilt + jitter
-        angerCrossMesh.rotation.set(-0.42 + jitterY * 4, 0.22 + jitterX * 4, 0.35 + jitterAngle);
-
-        // Dynamic emissive flash matching heartbeats
-        angerMaterial.opacity = Math.min(1, popProgress * 1.3);
-        angerMaterial.emissiveIntensity = 0.85 + heartPulse * 1.5 + angerEffect * 0.4;
+        angerCrossMesh.scale.setScalar(popProgress);
+        angerCrossMesh.rotation.set(-0.30, 0.25, 0.16);
+        angerMaterial.opacity = popProgress;
       }
 
       // Update 3D Sleep Bubble expanding & contracting with breathing rhythm
@@ -894,7 +949,8 @@ export function makeSlime(physics, environment, { transparentBackdrop = false } 
       geometries.forEach(g => g.dispose());
       gel.dispose(); rearMaterial.dispose(); black.dispose(); bubbleGeometry.dispose(); bubbleMaterial.dispose();
       starGeometry.dispose(); starMaterial.dispose();
-      angerCrossGeom.dispose(); angerMaterial.dispose(); angerTexture.dispose();
+      angerCrossGeom.dispose(); angerMaterial.dispose();
+      moodBrows.children.forEach(brow => brow.geometry.dispose()); browMaterial.dispose();
       sleepBubbleGeom.dispose(); sleepBubbleMat.dispose();
       [badge, coffee, bandaid].forEach(acc => {
         acc.geometries.forEach(g => g.dispose());

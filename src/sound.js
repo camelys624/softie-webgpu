@@ -203,6 +203,46 @@ class SoundFX {
     osc.stop(now + dur + 0.02);
   }
 
+  /** Two insistent alerts and a low comic sting announce the boss. */
+  async playBossArrival(isCurrent = () => true) {
+    if (!this.enabled || this.volume <= 0) return false;
+    try {
+      const ctx = this.init();
+      if (!ctx) return false;
+      // Never queue a stale arrival sound behind a browser autoplay lock.
+      if (ctx.state === 'suspended') await ctx.resume();
+      if (ctx.state !== 'running' || !this.enabled || this.volume <= 0 || !isCurrent()) return false;
+      const now = ctx.currentTime;
+      for (const [type, frequency, endFrequency, delay, duration, peak] of [
+        ['triangle', 880, 988, 0, 0.21, 0.48],
+        ['triangle', 988, 1175, 0.28, 0.21, 0.52],
+        ['triangle', 392, 294, 0.58, 0.62, 0.46],
+        ['sine', 196, 147, 0.58, 0.56, 0.20],
+      ]) {
+        const t = now + delay;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(frequency, t);
+        osc.frequency.exponentialRampToValueAtTime(endFrequency, t + duration * 0.7);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(peak, t + 0.012);
+        gain.gain.linearRampToValueAtTime(peak * 0.85, t + 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+        gain.gain.linearRampToValueAtTime(0, t + duration + 0.02);
+        osc.connect(gain);
+        gain.connect(this.filter);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+        osc.start(t);
+        osc.stop(t + duration + 0.03);
+      }
+      return true;
+    } catch {
+      // Audio availability must not interrupt the encounter or its animation.
+      return false;
+    }
+  }
+
   /** A soft mallet knock followed by two quiet, consonant purification chimes. */
   playPurify() {
     if (!this.enabled) return;

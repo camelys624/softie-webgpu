@@ -1,0 +1,22 @@
+import {spawnSync} from 'node:child_process';
+import {writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const bin=path.resolve('node_modules/@remotion/compositor-win32-x64-msvc');
+const movie=path.resolve('out/softie-workmate.mp4');
+const probe=spawnSync(path.join(bin,'ffprobe.exe'),['-v','error','-show_streams','-show_format','-of','json',movie],{encoding:'utf8'});
+assert.equal(probe.status,0,probe.stderr);
+const metadata=JSON.parse(probe.stdout),v=metadata.streams.find(s=>s.codec_type==='video'),a=metadata.streams.find(s=>s.codec_type==='audio');
+assert.equal(v.width,1920);assert.equal(v.height,1080);assert.equal(v.avg_frame_rate,'30/1');assert.equal(v.codec_name,'h264');assert.equal(a.codec_name,'aac');
+assert.ok(Math.abs(Number(metadata.format.duration)-42.6)<.1);
+const decode=spawnSync(path.join(bin,'ffmpeg.exe'),['-v','error','-i',movie,'-c:v','rawvideo','-c:a','pcm_s16le','-f','null','-'],{encoding:'utf8',timeout:120000});
+assert.equal(decode.status,0,decode.stderr);
+const audio=spawnSync(path.join(bin,'ffmpeg.exe'),['-v','error','-i',movie,'-vn','-ac','1','-ar','22050','-c:a','pcm_s16le','-f','wav','-'],{maxBuffer:10*1024*1024});
+assert.equal(audio.status,0,audio.stderr.toString());
+const start=audio.stdout.indexOf(Buffer.from('data'))+8;
+assert.ok(start>8);
+let peak=0,sum=0;for(let n=start;n<audio.stdout.length-1;n+=2){const x=audio.stdout.readInt16LE(n)/32768;peak=Math.max(peak,Math.abs(x));sum+=x*x;}
+const rms=Math.sqrt(sum/((audio.stdout.length-start)/2));
+assert.ok(peak>.03&&peak<.98);assert.ok(rms>.002);
+const report={duration:Number(metadata.format.duration),width:v.width,height:v.height,fps:30,video:v.codec_name,audio:a.codec_name,bytes:Number(metadata.format.size),audioPeak:peak,audioRms:rms,fullDecode:'passed'};
+await writeFile('out/verification.json',JSON.stringify(report,null,2));console.log(report);

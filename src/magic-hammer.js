@@ -33,11 +33,61 @@ export function createMagicHammer(reducedMotion) {
   burst.className = 'boss-purify';
   burst.hidden = true;
   burst.setAttribute('aria-hidden', 'true');
-  burst.innerHTML = '<i class="purify-ring"></i><i class="purify-ring inner"></i><b>✦</b><b>✧</b><b>✦</b><b>✧</b>';
-  document.body.append(element, burst);
+  burst.innerHTML = '<i class="purify-ring"></i><i class="purify-ring inner"></i>';
+  const stars = document.createElement('div');
+  stars.className = 'boss-impact-stars';
+  stars.setAttribute('aria-hidden', 'true');
+  document.body.append(element, burst, stars);
+  const waves = new Set();
+  let strikeIndex = 0;
+  let lastScatterAt = -Infinity;
   let rect = null;
   const cancel = target => target.getAnimations().forEach(animation => animation.cancel());
   const clearBurst = () => { cancel(burst); burst.hidden = true; };
+  const removeWave = wave => {
+    wave.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
+    wave.remove(); waves.delete(wave);
+  };
+  const clearStars = () => { for (const wave of waves) removeWave(wave); lastScatterAt = -Infinity; };
+  function scatterStars(point) {
+    if (reducedMotion.matches) return;
+    // Sparse bursts can finish fading even while the hammer keeps striking.
+    const now = performance.now();
+    if (now - lastScatterAt < 380 || waves.size >= 2) return;
+    lastScatterAt = now;
+    const wave = document.createElement('div');
+    wave.className = 'boss-impact-wave';
+    wave.style.left = `${point.x}px`;
+    wave.style.top = `${point.y}px`;
+    stars.append(wave); waves.add(wave);
+    const reach = Math.min(72, Math.max(36, innerWidth * 0.12));
+    const turn = (++strikeIndex % 3 - 1) * 0.08;
+    const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    for (let i = 0; i < 3; i++) {
+      const star = document.createElement('span');
+      star.className = 'boss-impact-star';
+      star.innerHTML = '<svg viewBox="0 0 24 24"><path d="m12 2 3 6.3 7 .9-5.1 4.9 1.3 6.9-6.2-3.3L5.8 21l1.3-6.9L2 9.2l7-.9Z"/></svg>';
+      star.style.width = star.style.height = `${(i === 0 ? 18 : 14) * Math.min(1.15, innerWidth / 340)}px`;
+      if (i === 1) star.classList.add('is-lilac');
+      wave.append(star);
+      const angle = -Math.PI * (0.85 - i * 0.35) + turn;
+      const x = Math.cos(angle) * reach, rise = 32 - Math.sin(angle) * reach * 0.5;
+      const spin = (i % 2 ? -1 : 1) * (45 + i * 12);
+      const transform = (x, y, scale, rotate) => `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotate}deg) scale(${scale})`;
+      // Sample one continuous arc, without corners between flight keyframes.
+      const frames = Array.from({ length: 31 }, (_, frame) => {
+        const t = frame / 30, travel = (1 - Math.exp(-3 * t)) / (1 - Math.exp(-3));
+        const appear = smooth(t / 0.12), fade = smooth((t - 0.3) / 0.7);
+        return { offset: t, transform: transform(x * travel, -rise * (2 * t - t * t) + 24 * t * t,
+          appear * (1 - smooth((t - 0.45) / 0.55)), spin * travel), opacity: appear * (1 - fade) * 0.9 };
+      });
+      const animation = star.animate(frames, { duration: 560 + i * 40, delay: 80, easing: 'linear', fill: 'both' });
+      animation.onfinish = () => {
+        star.remove();
+        if (!wave.childElementCount) { wave.remove(); waves.delete(wave); }
+      };
+    }
+  }
   function flash(point, release) {
     if (reducedMotion.matches) return;
     cancel(burst);
@@ -53,10 +103,10 @@ export function createMagicHammer(reducedMotion) {
       { transform: 'translate(-50%, -50%) scale(0.85) rotate(0deg)', opacity: 0.85, offset: 0.2 },
       { transform: 'translate(-50%, -50%) scale(1.35) rotate(20deg)', opacity: 0 },
     ];
-    const animation = burst.animate(frames, { duration: release ? 360 : 300, easing: 'ease-out' });
+    const animation = burst.animate(frames, { duration: release ? 360 : 300, delay: release ? 0 : 80, fill: 'both', easing: 'ease-out' });
     animation.onfinish = () => { burst.hidden = true; };
   }
-  const stopMotion = () => { if (reducedMotion.matches) { cancel(element); clearBurst(); } };
+  const stopMotion = () => { if (reducedMotion.matches) { cancel(element); clearBurst(); clearStars(); } };
   reducedMotion.addEventListener('change', stopMotion);
   return {
     element,
@@ -68,21 +118,23 @@ export function createMagicHammer(reducedMotion) {
     },
     strike(point) {
       if (reducedMotion.matches) return;
+      const currentTransform = getComputedStyle(element).transform;
       cancel(element);
       if (!element.hidden && rect) {
         const dx = point.x - rect.left - element.offsetWidth * 0.4;
         const dy = point.y - rect.top - element.offsetHeight * 0.3;
         element.animate([
-          { transform: 'translate(0, 0) rotate(12deg)' },
-          { transform: `translate(${dx}px, ${dy}px) rotate(-16deg)`, offset: 0.42 },
+          { transform: currentTransform, easing: 'cubic-bezier(.4,0,.8,.6)' },
+          { transform: `translate(${dx}px, ${dy}px) rotate(-12deg)`, offset: 0.38, easing: 'cubic-bezier(.16,1,.3,1)' },
           { transform: 'translate(0, 0) rotate(0deg)' },
-        ], { duration: 175, easing: 'ease-out' });
+        ], { duration: 240, easing: 'linear' });
       }
       flash(point, false);
+      scatterStars(point);
     },
     release(point) { flash(point, true); },
     hideProp() { cancel(element); element.hidden = true; },
-    hide() { cancel(element); element.hidden = true; clearBurst(); },
-    dispose() { cancel(element); clearBurst(); reducedMotion.removeEventListener('change', stopMotion); element.remove(); burst.remove(); },
+    hide() { cancel(element); element.hidden = true; clearBurst(); clearStars(); },
+    dispose() { cancel(element); clearBurst(); clearStars(); reducedMotion.removeEventListener('change', stopMotion); element.remove(); burst.remove(); stars.remove(); },
   };
 }

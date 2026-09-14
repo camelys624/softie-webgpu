@@ -46,6 +46,8 @@ try {
   assert.equal(held.boss.phase, 'panic');
   assert.equal(held.physics.dragging, false);
   assert.equal(await page.locator('.boss-purify').isVisible(), true);
+  const starCount = await page.locator('.boss-impact-star').count();
+  assert.ok(starCount >= 3 && starCount <= 6, 'held hits keep at most two sparse bursts');
   await page.screenshot({ path: 'artifacts/boss-hit.png' });
   await page.waitForFunction(() => window.__SOFTIE__.boss.pose?.phase === 'exit');
   await page.screenshot({ path: 'artifacts/boss-exit.png' });
@@ -55,6 +57,7 @@ try {
   assert.equal(await page.evaluate(() => window.__SOFTIE__.slime.bossPose), null);
   assert.equal(await page.locator('.boss-hammer').isVisible(), false);
   assert.equal(await page.locator('.boss-purify').isVisible(), false);
+  assert.equal(await page.locator('.boss-impact-star').count(), 0, 'departure clears impact particles');
   assert.equal(await page.evaluate(() => window.__SOFTIE__.slime.face.geometry.drawRange.start), 0);
   await page.waitForTimeout(700);
   const restored = await center(page);
@@ -66,10 +69,10 @@ try {
 
   await summon(page);
   await page.mouse.move(0, 0);
-  await page.waitForTimeout(4100);
+  await page.waitForTimeout(9100);
   assert.equal(await page.evaluate(() => window.__SOFTIE__.boss.encounter.active), true);
   await page.waitForFunction(() => !window.__SOFTIE__.boss.encounter.active, null, { timeout: 2000 });
-  console.log('PASS ignored boss exits after five seconds');
+  console.log('PASS ignored boss exits after ten seconds');
 
   await summon(page);
   const pt = await center(page);
@@ -83,8 +86,8 @@ try {
   await page.evaluate(() => window.__SOFTIE__.boss.reset());
   await page.locator('[data-language="en"]').click();
   await summon(page);
-  await page.waitForFunction(() => document.querySelector('.boss-bubble strong').textContent.includes('BOSS'));
-  assert.match(await page.locator('.boss-bubble strong').textContent(), /BOSS/);
+  await page.waitForFunction(() => /[a-z]/i.test(document.querySelector('.boss-bubble p').textContent));
+  assert.equal(await page.locator('.boss-bubble').evaluate(e => e.children.length), 1);
   await page.locator('#slime-canvas').focus();
   await page.keyboard.press('Space');
   assert.equal(await page.evaluate(() => window.__SOFTIE__.boss.encounter.hits), 1);
@@ -140,7 +143,7 @@ try {
     await pet.evaluate(() => window.__SOFTIE__.boss.reset());
     await pet.locator('[data-language="en"]').evaluate(button => button.click());
     await summon(pet);
-    await pet.waitForFunction(() => document.querySelector('.boss-bubble strong').textContent.includes('BOSS'));
+    await pet.waitForFunction(() => /[a-z]/i.test(document.querySelector('.boss-bubble p').textContent));
     await pet.screenshot({ path: `artifacts/boss-pet-${size}-en.png` });
     await pet.close();
     console.log(`PASS ${size} pet framing, bubble bounds and hammer interaction`);

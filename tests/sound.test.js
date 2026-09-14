@@ -50,7 +50,7 @@ test('soundFX supports volume control defaulting to 80%', () => {
   sound.setVolume(0.8);
 });
 
-test('soundFX correctly synthesizes procedural audio events when AudioContext exists', () => {
+test('soundFX correctly synthesizes procedural audio events when AudioContext exists', async () => {
   const createdNodes = [];
   class MockParam {
     constructor(val = 0) { this.value = val; }
@@ -68,6 +68,7 @@ test('soundFX correctly synthesizes procedural audio events when AudioContext ex
       createdNodes.push(this);
     }
     connect() {}
+    disconnect() {}
     start() {}
     stop() {}
   }
@@ -100,11 +101,21 @@ test('soundFX correctly synthesizes procedural audio events when AudioContext ex
     const beforePurify = createdNodes.filter(n => n.kind === 'oscillator').length;
     sound.playPurify();
     assert.equal(createdNodes.filter(n => n.kind === 'oscillator').length - beforePurify, 3);
+    const beforeArrival = createdNodes.filter(n => n.kind === 'oscillator').length;
+    assert.equal(await sound.playBossArrival(), true);
+    assert.equal(createdNodes.filter(n => n.kind === 'oscillator').length - beforeArrival, 4);
     const beforeMute = createdNodes.length;
     sound.enabled = false;
     sound.playPurify();
+    assert.equal(await sound.playBossArrival(), false);
     assert.equal(createdNodes.length, beforeMute, 'muted purification creates no audio voices');
     sound.enabled = true;
+    const beforeStale = createdNodes.length;
+    assert.equal(await sound.playBossArrival(() => false), false);
+    assert.equal(createdNodes.length, beforeStale, 'expired arrival never queues a late notification');
+    sound.setVolume(0);
+    assert.equal(await sound.playBossArrival(), false);
+    sound.setVolume(0.8);
     sound.playLand(2.5);
     sound.playBubble(1.1);
     sound.playWakeup();

@@ -1,0 +1,38 @@
+{
+  "idle": {
+    "duration": 5.501,
+    "tail": 0.08,
+    "rawDuration": 9.76,
+    "start": 4.178999999999999
+  },
+  "touch": {
+    "duration": 6.744,
+    "tail": 0.08,
+    "rawDuration": 11.04,
+    "start": 4.215999999999999
+  },
+  "angry": {
+    "duration": 4.934,
+    "tail": 0.08,
+    "rawDuration": 9.28,
+    "start": 4.265999999999999
+  },
+  "boss": {
+    "duration": 11.966,
+    "tail": 0.08,
+    "rawDuration": 16.2,
+    "start": 4.154
+  },
+  "comfort": {
+    "duration": 7.45,
+    "tail": 0.08,
+    "rawDuration": 20.88,
+    "start": 13.35
+  },
+  "happy": {
+    "duration": 5.6,
+    "tail": 0.08,
+    "rawDuration": 9.92,
+    "start": 4.24
+  }
+}

@@ -22,11 +22,12 @@ export function setupUI({ onColor, onAccessory, onStiffness, onDamping, onPoke, 
   const accessoryName = document.querySelector('#accessory-name');
   let language = 'zh', selectedColor = DEFAULTS.color, selectedAccessory = 'none', rendererState = 'pending', errorKey = 'initFailed';
   let currentMood = 'chill';
+  let currentReassured = false;
   const moodBadge = document.querySelector('#mood-badge');
   const moodText = document.querySelector('#mood-text');
-  const moodKeys = { chill: 'moodChill', annoyed: 'moodAnnoyed', rage: 'moodRage', sleepy: 'moodSleepy' };
+  const moodKeys = { chill: 'moodChill', happy: 'moodHappy', annoyed: 'moodAnnoyed', rage: 'moodRage', sleepy: 'moodSleepy', sad: 'moodSad', recovering: 'moodRecovering' };
   const rageBadge = document.querySelector('#rage-hud-badge');
-  const rageKeys = { chill: 'rageChill', annoyed: 'rageAnnoyed', rage: 'rageMax', sleepy: 'rageSleepy' };
+  const rageKeys = { chill: 'rageChill', happy: 'rageHappy', annoyed: 'rageAnnoyed', rage: 'rageMax', sleepy: 'rageSleepy', sad: 'rageSad', recovering: 'rageRecovering' };
   const values = { stiffness: DEFAULTS.stiffness, damping: DEFAULTS.damping };
   try { if (localStorage.getItem('softie-language') === 'en') language = 'en'; } catch { /* Storage may be disabled. */ }
   const t = key => translate(language, key);
@@ -44,7 +45,7 @@ export function setupUI({ onColor, onAccessory, onStiffness, onDamping, onPoke, 
       moodText.setAttribute('data-i18n', key);
     }
     if (rageBadge) {
-      const rKey = rageKeys[currentMood] ?? 'rageChill';
+      const rKey = currentReassured && currentMood === 'chill' ? 'rageReassured' : rageKeys[currentMood] ?? 'rageChill';
       rageBadge.textContent = t(rKey);
       rageBadge.setAttribute('data-i18n', rKey);
     }
@@ -359,9 +360,10 @@ export function setupUI({ onColor, onAccessory, onStiffness, onDamping, onPoke, 
       }
       unsupported.hidden = true;
     },
-    setMood(mood) {
-      if (currentMood === mood) return;
+    setMood(mood, reassured = false) {
+      if (currentMood === mood && currentReassured === reassured) return;
       currentMood = mood;
+      currentReassured = reassured;
       renderMood();
     },
     setAccessory: selectAccessory,

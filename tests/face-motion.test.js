@@ -6,6 +6,91 @@ function advance(face, seconds, hz = 60) {
   for (let i = 0; i < Math.round(seconds * hz); i++) face.update(face.time + 1 / hz);
 }
 
+test('defeating a boss clears accumulated sadness and gives six seconds of happiness', () => {
+  for (const comfort of [false, true]) {
+    const face = new FaceMotion();
+    face.bossIgnored(); face.bossIgnored();
+    if (comfort) { face.comfort(); advance(face, 0.5); }
+    face.addAnger(0.8);
+    face.bossDefeated();
+    assert.equal(face.sadnessCount, 0);
+    assert.equal(face.comforting, false);
+    assert.equal(face.anger, 0);
+    assert.equal(face.mood, 'happy');
+    advance(face, 2);
+    assert.ok(face.state.happy > 0.9 && face.state.sad < 0.01);
+    face.fallAsleep();
+    assert.equal(face.mood, 'happy');
+    advance(face, 4.1);
+    assert.equal(face.mood, 'chill');
+    face.bossIgnored();
+    assert.equal(face.comfortDuration, 1.2, 'victory resets the accumulated recovery time');
+    face.bossDefeated(); face.reset();
+    assert.equal(face.mood, 'chill');
+  }
+});
+
+test('an ignored boss leaves persistent sadness, and a poke starts gradual recovery', () => {
+  const face = new FaceMotion();
+  face.bossIgnored();
+  advance(face, 20);
+  face.fallAsleep();
+  assert.equal(face.mood, 'sad');
+  assert.equal(face.isSleeping, false);
+  assert.ok(face.state.sad > 0.99);
+  assert.equal(face.comfort(), true);
+  advance(face, 0.6);
+  assert.equal(face.mood, 'recovering');
+  assert.ok(face.sadness > 0 && face.sadness < 1);
+  face.comfort();
+  advance(face, 0.6);
+  assert.equal(face.mood, 'chill', 'another reassuring poke does not restart the clock');
+  assert.equal(face.sadnessCount, 0);
+  assert.equal(face.expression, 'happy');
+  assert.equal(face.reassured, true);
+  advance(face, 3.6);
+  assert.equal(face.reassured, false, 'the recovery line gives way to the regular idle caption');
+});
+
+test('repeated ignored visits extend recovery, pause for possession, and reset after recovery', () => {
+  const face = new FaceMotion();
+  face.bossIgnored(); face.bossIgnored();
+  assert.equal(face.comfortDuration, 3.2);
+  face.comfort(); advance(face, 1.2);
+  assert.equal(face.mood, 'recovering');
+  face.bossPresent = true;
+  const elapsed = face.comfortElapsed;
+  advance(face, 5);
+  assert.equal(face.comfortElapsed, elapsed);
+  assert.equal(face.comfort(), false);
+  face.bossPresent = false;
+  face.bossIgnored();
+  assert.equal(face.comfortDuration, 5.2);
+  assert.equal(face.mood, 'sad');
+  face.comfort(); advance(face, 5.2);
+  assert.equal(face.mood, 'chill');
+  face.bossIgnored();
+  assert.equal(face.comfortDuration, 1.2);
+  for (let i = 0; i < 20; i++) face.bossIgnored();
+  assert.equal(face.comfortDuration, 9.2, 'repeated encounters have a bounded recovery time');
+  face.comfort(); face.reset();
+  assert.equal(face.mood, 'chill');
+  assert.equal(face.comforting, false);
+  assert.equal(face.sadnessCount, 0);
+});
+
+test('sad recovery has the same duration at different frame rates and with reduced motion', () => {
+  for (const hz of [30, 60, 120]) {
+    const face = new FaceMotion();
+    face.reducedMotion = true;
+    face.bossIgnored(); face.bossIgnored(); face.comfort();
+    advance(face, 3, hz);
+    assert.equal(face.mood, 'recovering');
+    advance(face, 0.2, hz);
+    assert.equal(face.mood, 'chill');
+  }
+});
+
 test('grab overrides reactions, release smiles, and one-shots return to neutral', () => {
   const face = new FaceMotion();
   face.react('surprised'); advance(face, 0.25);

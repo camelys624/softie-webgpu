@@ -11,7 +11,7 @@ export class FaceMotion {
     this.isSleeping = false;
     this.state = {
       surprised: 0, squish: 0, happy: 0, wink: 0, dizzy: 0,
-      annoyed: 0, angry: 0, sleepy: 0, startle: 0,
+      annoyed: 0, angry: 0, sleepy: 0, startle: 0, sad: 0,
       blink: 0, gazeX: 0, gazeY: 0, angerLevel: 0,
     };
     this.reset();
@@ -24,6 +24,12 @@ export class FaceMotion {
     this.blinkAt = this.time + 4.2;
     this.anger = 0;
     this.isSleeping = false;
+    this.sadnessCount = 0;
+    this.comfortElapsed = 0;
+    this.comforting = false;
+    this.bossPresent = false;
+    this.reassuredUntil = 0;
+    this.happyUntil = 0;
     for (const key in this.state) this.state[key] = 0;
   }
 
@@ -41,8 +47,50 @@ export class FaceMotion {
     this.anger = Math.max(0, this.anger - delta);
   }
 
+  get isSad() { return this.sadnessCount > 0; }
+  get isHappy() { return !this.bossPresent && this.time < this.happyUntil; }
+  get reassured() { return !this.bossPresent && this.mood === 'chill' && this.time < this.reassuredUntil; }
+  get comfortDuration() { return this.isSad ? 1.2 + (this.sadnessCount - 1) * 2 : 0; }
+  get sadness() {
+    return this.isSad ? this.comforting ? 1 - smooth(this.comfortElapsed / this.comfortDuration) : 1 : 0;
+  }
+
+  bossIgnored() {
+    this.wakeUp();
+    this.happyUntil = 0;
+    this.reassuredUntil = 0;
+    this.sadnessCount = Math.min(5, this.sadnessCount + 1);
+    this.comfortElapsed = 0;
+    this.comforting = false;
+    this.reaction = null;
+    this.state.sad = 1;
+    this.calmDown(1);
+  }
+
+  bossDefeated() {
+    this.wakeUp();
+    this.sadnessCount = 0;
+    this.comfortElapsed = 0;
+    this.comforting = false;
+    this.reassuredUntil = 0;
+    this.reaction = null;
+    this.calmDown(1);
+    this.state.sad = this.state.angry = this.state.annoyed = this.state.angerLevel = 0;
+    this.state.happy = 1;
+    this.happyUntil = this.time + 6;
+  }
+
+  comfort() {
+    if (!this.isSad || this.bossPresent) return false;
+    this.wakeUp();
+    this.comforting = true;
+    this.reaction = null;
+    this.calmDown(1);
+    return true;
+  }
+
   fallAsleep() {
-    if (this.grabbing || this.reaction?.kind === 'dizzy' || this.anger > 0.25) return;
+    if (this.isSad || this.isHappy || this.grabbing || this.reaction?.kind === 'dizzy' || this.anger > 0.25) return;
     this.isSleeping = true;
   }
 
@@ -72,7 +120,7 @@ export class FaceMotion {
       if (this.isSleeping) this.wakeUp(true);
       if (this.reaction?.kind !== 'dizzy' && this.reaction?.kind !== 'angry') this.reaction = null;
     } else {
-      if (celebrate && this.reaction?.kind !== 'dizzy') {
+      if (celebrate && !this.isSad && this.reaction?.kind !== 'dizzy') {
         if (this.anger > 0.6) {
           this.react('angry');
         } else if (this.anger > 0.3) {
@@ -89,14 +137,26 @@ export class FaceMotion {
     this.time = time;
     const follow = 1 - Math.exp(-dt * 14);
 
+    // Recovery is elapsed time after reassurance; repeated pokes never restart it.
+    if (this.comforting && !this.bossPresent && !this.grabbing) {
+      this.comfortElapsed += dt;
+      if (this.comfortElapsed + 1e-9 >= this.comfortDuration) {
+        this.sadnessCount = 0;
+        this.comfortElapsed = 0;
+        this.comforting = false;
+        this.reassuredUntil = time + 3.5;
+        this.react('happy');
+      }
+    }
+
     // Natural anger decay: ~0.08/s when not provoked
     if (!this.grabbing && this.anger > 0) {
       this.anger = Math.max(0, this.anger - dt * 0.08);
     }
     this.state.angerLevel += (this.anger - this.state.angerLevel) * (1 - Math.exp(-dt * 6));
 
-    let kind = this.grabbing ? 'squish' : (this.isSleeping ? 'sleepy' : 'idle');
-    let weight = (this.grabbing || this.isSleeping) ? 1 : 0;
+    let kind = this.grabbing ? 'squish' : this.isSleeping ? 'sleepy' : this.isSad ? 'sad' : this.mood === 'happy' ? 'happy' : 'idle';
+    let weight = (this.grabbing || this.isSleeping) ? 1 : kind === 'happy' ? 1 - smooth(this.time - (this.happyUntil - 1)) : this.sadness;
 
     if (this.reaction) {
       const age = time - this.reaction.started;
@@ -118,7 +178,7 @@ export class FaceMotion {
     const baseAngry = (!activeReaction && !this.grabbing && !this.isSleeping && this.anger > 0.65)
       ? (this.anger - 0.65) / 0.35 : 0;
 
-    for (const key of ['surprised', 'squish', 'happy', 'wink', 'dizzy', 'annoyed', 'angry', 'sleepy', 'startle']) {
+    for (const key of ['surprised', 'squish', 'happy', 'wink', 'dizzy', 'annoyed', 'angry', 'sleepy', 'startle', 'sad']) {
       let targetWeight = 0;
       if (kind === key) {
         targetWeight = weight;
@@ -138,7 +198,7 @@ export class FaceMotion {
 
     // Gaze drifts towards center if sleeping or angry
     const targetX = (this.reducedMotion || this.isSleeping) ? 0 : this.targetX;
-    const targetY = (this.reducedMotion || this.isSleeping) ? -0.15 : this.targetY;
+    const targetY = (this.reducedMotion || this.isSleeping) ? -0.15 : this.targetY * (1 - this.sadness * 0.7) - this.sadness * 0.35;
     this.state.gazeX += (targetX - this.state.gazeX) * (1 - Math.exp(-dt * 10));
     this.state.gazeY += (targetY - this.state.gazeY) * (1 - Math.exp(-dt * 10));
     return this.state;
@@ -151,15 +211,19 @@ export class FaceMotion {
     if (this.grabbing) return 'squish';
     if (this.reaction?.kind) return this.reaction.kind;
     if (this.isSleeping) return 'sleepy';
+    if (this.isSad) return 'sad';
     if (this.anger > 0.65) return 'angry';
     if (this.anger > 0.3) return 'annoyed';
+    if (this.isHappy) return 'happy';
     return 'idle';
   }
 
   get mood() {
+    if (this.isSad) return this.comforting ? 'recovering' : 'sad';
     if (this.isSleeping) return 'sleepy';
     if (this.anger > 0.65) return 'rage';
     if (this.anger > 0.3) return 'annoyed';
+    if (this.isHappy) return 'happy';
     return 'chill';
   }
 }

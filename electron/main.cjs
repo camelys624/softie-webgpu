@@ -251,6 +251,8 @@ function createWindow() {
     type: 'toolbar',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      // Arrival alerts must work before the first click on the desktop pet.
+      autoplayPolicy: 'no-user-gesture-required',
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

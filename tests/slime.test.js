@@ -268,7 +268,7 @@ test('worker accessories switch visibility and follow soft-body deformation fiel
   slime.dispose();
 });
 
-test('3D anger cross pops on right forehead during rage, uses renderOrder 5, and pulses stably', () => {
+test('rounded anger cross appears on right forehead during rage and settles with the expression', () => {
   const physics = new JellyPhysics();
   const slime = makeSlime(physics);
 
@@ -292,5 +292,57 @@ test('3D anger cross pops on right forehead during rage, uses renderOrder 5, and
   for (let t = 0.5; t <= 3.5; t += 0.1) slime.update(t);
   assert.equal(slime.angerCross.visible, false, 'hidden after rage settles');
 
+  slime.dispose();
+});
+
+test('annoyed and angry faces have attached brows, preserve jelly volume, and yield to sadness and possession', () => {
+  const physics = new JellyPhysics();
+  const slime = makeSlime(physics);
+  slime.update(0);
+  const original = slime.body.geometry;
+  slime.faceMotion.addAnger(0.5);
+  for (let t = 0.02; t <= 0.4; t += 0.02) slime.update(t);
+  assert.equal(slime.moodBrows.visible, true);
+  assert.equal(slime.angerCross.visible, false, 'mild annoyance has no anger mark');
+  assert.equal(slime.group.scale.x, 1, 'puff belongs to full anger');
+
+  slime.faceMotion.addAnger(0.5);
+  for (let t = 0.42; t <= 0.9; t += 0.02) slime.update(t);
+  assert.ok(slime.group.scale.x > 1.05);
+  assert.ok(Math.abs(slime.group.scale.x * slime.group.scale.y * slime.group.scale.z - 1) < 1e-6);
+  assert.equal(slime.body.geometry, original);
+  assert.equal(slime.gel.transmission, 1);
+  assert.equal(slime.angerCross.material.emissiveIntensity, 1);
+  assert.equal(slime.angerCross.material.emissive.getHex(), 0, 'mark does not glow');
+
+  const before = slime.moodBrows.children.map(brow => Float32Array.from(brow.geometry.attributes.position.array));
+  physics.beginGrab({ x: 0.3, y: 1.4, z: 1 }, { x: 0.3, y: 1.4, z: 1 });
+  physics.moveGrab({ x: 0.8, y: 2.0, z: 1 });
+  for (let i = 0; i < 40; i++) physics.update(1 / 120);
+  slime.faceMotion.grab(true);
+  slime.update(0.91);
+  const expected = {};
+  for (const [index, brow] of slime.moodBrows.children.entries()) {
+    const positions = brow.geometry.attributes.position.array;
+    for (let n = 0; n < positions.length; n += 33) {
+      physics.deform(before[index][n], before[index][n + 1], before[index][n + 2], expected);
+      assert.ok(Math.hypot(positions[n] - expected.x, positions[n + 1] - expected.y, positions[n + 2] - expected.z) < 0.002, 'brows stay attached under stretching');
+    }
+  }
+  slime.setBossPose({ weight: 1, fear: 0, shock: 0 });
+  slime.update(0.92);
+  assert.equal(slime.moodBrows.visible, false);
+  assert.equal(slime.angerCross.visible, false);
+  assert.equal(slime.group.scale.x, 1);
+  slime.setBossPose(null);
+  slime.faceMotion.grab(false);
+  slime.faceMotion.bossIgnored();
+  slime.update(0.93);
+  assert.equal(slime.moodBrows.visible, false);
+  assert.equal(slime.angerCross.visible, false);
+  slime.faceMotion.reset();
+  slime.update(0.94);
+  assert.equal(slime.moodBrows.visible, false);
+  assert.equal(slime.group.scale.x, 1);
   slime.dispose();
 });

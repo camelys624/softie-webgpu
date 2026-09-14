@@ -22,7 +22,7 @@ try {
       const now = boss.encounter.now;
       window.restoreEncounterClock = () => { boss.update = update; boss.encounter.now = now; };
       window.exitProgress = 0;
-      boss.encounter.now = () => boss.encounter.firstHitAt + 1100 + window.exitProgress * 900;
+      boss.encounter.now = () => boss.encounter.firstHitAt + 4100 + window.exitProgress * 900;
       boss.update = () => update(boss.encounter.now());
     });
     let previousTail;
@@ -84,7 +84,7 @@ try {
         window.restoreEncounterClock();
         const { boss } = window.__SOFTIE__;
         boss.summon();
-        boss.encounter.startedAt = performance.now() - 4500;
+        boss.encounter.startedAt = performance.now() - 9500;
       });
       await page.waitForFunction(() => window.__SOFTIE__.boss.pose?.phase === 'exit');
       const target = await page.evaluate(() => {
@@ -99,7 +99,7 @@ try {
       assert.equal(await page.evaluate(() => {
         const b = window.__SOFTIE__.boss.encounter;
         return b.deadline - b.firstHitAt;
-      }), 2000, 'a late first mouse hit still gets its full two-second encounter');
+      }), 5000, 'a late first mouse hit still gets its full five-second encounter');
       await page.evaluate(() => window.__SOFTIE__.boss.reset());
       assert.equal(await page.locator('.boss-hammer').isVisible(), false);
       console.log('PASS late first hit interrupts ignored departure and reset clears it');

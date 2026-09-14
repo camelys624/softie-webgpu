@@ -1,0 +1,26 @@
+{
+  "idle": {
+    "duration": 5.501,
+    "tail": 0.08
+  },
+  "touch": {
+    "duration": 6.744,
+    "tail": 0.08
+  },
+  "angry": {
+    "duration": 4.934,
+    "tail": 0.08
+  },
+  "boss": {
+    "duration": 11.966,
+    "tail": 0.08
+  },
+  "comfort": {
+    "duration": 7.45,
+    "tail": 0.08
+  },
+  "happy": {
+    "duration": 5.6,
+    "tail": 0.08
+  }
+}
