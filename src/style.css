@@ -1818,7 +1818,8 @@ body[data-mode="pet"] .pet-handle.is-dragging {
 .speech-bubble[data-tail="top"]::after { top: -5px; bottom: auto; transform: rotate(225deg); }
 .mood-bubble { --bubble-fill: #faf0fa; --bubble-border: #e6cfe9; color: #826585; }
 .boss-active .mood-bubble { display: none; }
-.boss-hammer { --hammer-size: clamp(100px, 14vw, 180px); position: fixed; z-index: 40; width: var(--hammer-size); height: calc(var(--hammer-size) * 1.1); pointer-events: none; transform-origin: 68% 86%; }
+.boss-hammer { --hammer-size: clamp(100px, 14vw, 180px); position: fixed; z-index: 40; width: var(--hammer-size); height: calc(var(--hammer-size) * 1.1); pointer-events: none; }
+.hammer-swing { position: relative; width: 100%; height: 100%; transform-origin: 68% 86%; will-change: transform; }
 .boss-hammer img { position: relative; z-index: 1; width: 100%; height: 100%; filter: drop-shadow(0 3px 2px #78466a25); }
 .hammer-aura { position: absolute; left: 7%; top: 1%; width: 76%; height: 66%; border-radius: 50%; background: radial-gradient(ellipse, #fff1b97a, #f5cdf43d 48%, transparent 72%); animation: hammer-charge 1.8s ease-in-out infinite alternate; }
 .hammer-spark { position: absolute; z-index: 2; color: #e8ba69; font-size: 19px; text-shadow: 0 0 6px #fff3c7; }
@@ -1844,7 +1845,7 @@ body[data-mode="pet"] .boss-hammer { --hammer-size: clamp(88px, 30vw, 100px); }
 body[data-mode="pet"] .speech-bubble { max-width: min(215px, calc(100vw - 16px)); padding: 8px 12px; border-radius: 14px; }
 body[data-mode="pet"] .speech-bubble p { font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
-  .boss-hammer { transform: none !important; }
+  .hammer-swing { transform: none !important; }
   .hammer-aura { animation: none; opacity: 0.65; }
   .boss-purify { display: none !important; }
   .boss-impact-stars { display: none !important; }

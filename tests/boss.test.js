@@ -28,10 +28,16 @@ test('every configured dialogue is selectable and consecutive visits cannot repe
 
 test('enlarged hammer stays in the smallest window and leaves the face visible', () => {
   const face = { left: 98, top: 125, right: 157, bottom: 178 };
+  const size = { width: 88, height: 96.8 };
   const rect = hammerPlacement({ x: 128, y: 152 }, { width: 255, height: 225 },
-    { width: 88, height: 96.8 }, face, { left: 14, right: 244, top: 19, bottom: 82 });
-  assert.ok(rect.left >= 0 && rect.right <= 255 && rect.top >= 0 && rect.bottom <= 225);
-  assert.ok(rect.left >= face.right || rect.right <= face.left || rect.bottom <= face.top || rect.top >= face.bottom);
+    size, face, { left: 14, right: 244, top: 19, bottom: 82 });
+  const swingInset = Math.max(3, Math.ceil(Math.min(size.width, size.height) * 0.36));
+  assert.ok(rect.left >= swingInset && rect.right <= 255 - swingInset);
+  assert.ok(rect.top >= swingInset && rect.bottom <= 225 - swingInset);
+  const faceRect = hammerPlacement({ x: 128, y: 152 }, { width: 340, height: 300 },
+    size, face, { left: 14, right: 244, top: 19, bottom: 82 });
+  assert.ok(faceRect.left >= face.right || faceRect.right <= face.left
+    || faceRect.bottom <= face.top || faceRect.top >= face.bottom);
 });
 
 test('boss goes from smug to shocked, defiant, panic and exit within the five-second deadline', () => {

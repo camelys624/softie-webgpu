@@ -1,9 +1,24 @@
 const overlap = (a, b) => b ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
   * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) : 0;
+const HAMMER_HEAD = (() => {
+  const angle = -28 * Math.PI / 180;
+  const x = 81.5 - 88, y = 53 - 90;
+  return { x: (88 + Math.cos(angle) * x - Math.sin(angle) * y) / 176,
+    y: (90 + Math.sin(angle) * x + Math.cos(angle) * y) / 192 };
+})();
+const HAMMER_SWING_RADIANS = 24 * Math.PI / 180;
+const hammerImpactOffset = (width, height, direction) => {
+  const pivotX = width * 0.68, pivotY = height * 0.86;
+  const dx = HAMMER_HEAD.x * width - pivotX, dy = HAMMER_HEAD.y * height - pivotY;
+  const angle = direction * HAMMER_SWING_RADIANS;
+  return { x: pivotX + Math.cos(angle) * dx - Math.sin(angle) * dy,
+    y: pivotY + Math.sin(angle) * dx + Math.cos(angle) * dy };
+};
 
 // Keep the enlarged prop in the window and give the character's expression priority.
 export function hammerPlacement(point, viewport, size, face, bubble) {
   const { width, height } = size;
+  const swingInset = Math.max(3, Math.ceil(Math.min(width, height) * 0.36));
   const candidates = [[point.x + 12, point.y - height - 12]];
   if (face) candidates.push(
     [face.right + 8, face.top - height * 0.55],
@@ -14,8 +29,8 @@ export function hammerPlacement(point, viewport, size, face, bubble) {
     [point.x - width / 2, face.top - height - 8],
   );
   return candidates.map(([x, y]) => {
-    const left = Math.max(3, Math.min(viewport.width - width - 3, x));
-    const top = Math.max(3, Math.min(viewport.height - height - 3, y));
+    const left = Math.max(swingInset, Math.min(viewport.width - width - swingInset, x));
+    const top = Math.max(swingInset, Math.min(viewport.height - height - swingInset, y));
     const rect = { left, top, right: left + width, bottom: top + height };
     return { ...rect, score: overlap(rect, face) * 12 + overlap(rect, bubble) * 3
       + (face && rect.left < face.right + 6 && rect.right > face.left - 6 ? 10 : 0)
@@ -28,7 +43,8 @@ export function createMagicHammer(reducedMotion) {
   element.className = 'boss-hammer';
   element.hidden = true;
   element.setAttribute('aria-hidden', 'true');
-  element.innerHTML = '<span class="hammer-aura"></span><img src="./hammer.svg" alt=""><span class="hammer-spark spark-one">✧</span><span class="hammer-spark spark-two">✦</span>';
+  element.innerHTML = '<div class="hammer-swing"><span class="hammer-aura"></span><img src="./hammer.svg" alt=""><span class="hammer-spark spark-one">✧</span><span class="hammer-spark spark-two">✦</span></div>';
+  const swing = element.querySelector('.hammer-swing');
   const burst = document.createElement('div');
   burst.className = 'boss-purify';
   burst.hidden = true;
@@ -42,7 +58,29 @@ export function createMagicHammer(reducedMotion) {
   let strikeIndex = 0;
   let lastScatterAt = -Infinity;
   let rect = null;
+  let activeSwing = null;
   const cancel = target => target.getAnimations().forEach(animation => animation.cancel());
+  const resetSwing = animation => {
+    if (activeSwing !== animation) return;
+    activeSwing = null;
+    swing.style.transform = 'rotate(0deg)';
+  };
+  const cancelSwing = () => {
+    const animation = activeSwing;
+    if (!animation) {
+      swing.style.transform = 'rotate(0deg)';
+      return;
+    }
+    animation.cancel();
+    if (activeSwing === animation) resetSwing(animation);
+  };
+  const swingIsActive = () => {
+    if (!activeSwing) return false;
+    if (activeSwing.playState === 'pending' || activeSwing.playState === 'running') return true;
+    resetSwing(activeSwing);
+    return false;
+  };
+  const clearSwingOffset = () => { swing.style.left = '0px'; swing.style.top = '0px'; };
   const clearBurst = () => { cancel(burst); burst.hidden = true; };
   const removeWave = wave => {
     wave.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
@@ -106,35 +144,44 @@ export function createMagicHammer(reducedMotion) {
     const animation = burst.animate(frames, { duration: release ? 360 : 300, delay: release ? 0 : 80, fill: 'both', easing: 'ease-out' });
     animation.onfinish = () => { burst.hidden = true; };
   }
-  const stopMotion = () => { if (reducedMotion.matches) { cancel(element); clearBurst(); clearStars(); } };
+  const stopMotion = () => { if (reducedMotion.matches) { cancelSwing(); clearBurst(); clearStars(); } };
   reducedMotion.addEventListener('change', stopMotion);
   return {
     element,
     move(point, face, bubble) {
+      if (swingIsActive()) return;
       rect = hammerPlacement(point, { width: innerWidth, height: innerHeight },
         { width: element.offsetWidth, height: element.offsetHeight }, face, bubble);
       element.style.left = `${rect.left}px`;
       element.style.top = `${rect.top}px`;
+      const direction = point.x >= rect.left + element.offsetWidth * 0.68 ? 1 : -1;
+      const impact = hammerImpactOffset(element.offsetWidth, element.offsetHeight, direction);
+      swing.style.left = `${point.x - rect.left - impact.x}px`;
+      swing.style.top = `${point.y - rect.top - impact.y}px`;
     },
     strike(point) {
       if (reducedMotion.matches) return;
-      const currentTransform = getComputedStyle(element).transform;
-      cancel(element);
+      cancelSwing();
       if (!element.hidden && rect) {
-        const dx = point.x - rect.left - element.offsetWidth * 0.4;
-        const dy = point.y - rect.top - element.offsetHeight * 0.3;
-        element.animate([
-          { transform: currentTransform, easing: 'cubic-bezier(.4,0,.8,.6)' },
-          { transform: `translate(${dx}px, ${dy}px) rotate(-12deg)`, offset: 0.38, easing: 'cubic-bezier(.16,1,.3,1)' },
-          { transform: 'translate(0, 0) rotate(0deg)' },
-        ], { duration: 240, easing: 'linear' });
+        const pivotX = rect.left + element.offsetWidth * 0.68;
+        const direction = point.x >= pivotX ? 1 : -1;
+        const animation = swing.animate([
+          { transform: 'rotate(0deg)', easing: 'cubic-bezier(.4,0,.8,.6)' },
+          { transform: `rotate(${-direction * 22}deg)`, offset: 0.20, easing: 'cubic-bezier(.16,1,.3,1)' },
+          { transform: `rotate(${direction * 24}deg)`, offset: 0.62, easing: 'cubic-bezier(.16,1,.3,1)' },
+          { transform: `rotate(${-direction * 5}deg)`, offset: 0.84 },
+          { transform: 'rotate(0deg)', offset: 1 },
+        ], { duration: 180, easing: 'linear', fill: 'both' });
+        activeSwing = animation;
+        animation.onfinish = () => resetSwing(animation);
+        animation.oncancel = () => resetSwing(animation);
       }
       flash(point, false);
       scatterStars(point);
     },
     release(point) { flash(point, true); },
-    hideProp() { cancel(element); element.hidden = true; },
-    hide() { cancel(element); element.hidden = true; clearBurst(); clearStars(); },
-    dispose() { cancel(element); clearBurst(); clearStars(); reducedMotion.removeEventListener('change', stopMotion); element.remove(); burst.remove(); stars.remove(); },
+    hideProp() { cancelSwing(); clearSwingOffset(); element.hidden = true; },
+    hide() { cancelSwing(); clearSwingOffset(); element.hidden = true; clearBurst(); clearStars(); },
+    dispose() { cancelSwing(); clearSwingOffset(); clearBurst(); clearStars(); reducedMotion.removeEventListener('change', stopMotion); element.remove(); burst.remove(); stars.remove(); },
   };
 }

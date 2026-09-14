@@ -164,6 +164,10 @@ function hyprlandPropertyExpression(property, value, address) {
   if (!/^0x[0-9a-f]+$/i.test(address || '')) return null;
   return `hl.dispatch(hl.dsp.window.set_prop({ window = "address:${address}", prop = "${property}", value = "${value}" }))`;
 }
+function hyprlandPinExpression(address) {
+  if (!/^0x[0-9a-f]+$/i.test(address || '')) return null;
+  return `hl.dispatch(hl.dsp.window.pin({ action = "enable", window = "address:${address}" }))`;
+}
 
 async function placeHyprlandWindow(bounds) {
   if (!bounds) return;
@@ -171,17 +175,21 @@ async function placeHyprlandWindow(bounds) {
   if (!client || !mainWindow || mainWindow.isDestroyed()) return;
   const expression = hyprlandMoveExpression(bounds.x, bounds.y, client.address);
   if (!expression) return;
-  const selector = `address:${client.address}`;
+  const pinExpression = hyprlandPinExpression(client.address);
+  if (!expression || !pinExpression) return;
   try {
-    await execFileAsync('hyprctl', ['eval', expression], { timeout: 1000 });
     await Promise.all([
-      ['decorate', '0'],
-      ['no_blur', '1'],
-      ['no_shadow', '1'],
-      ['no_dim', '1'],
-    ].map(([property, value]) => execFileAsync(
-      'hyprctl', ['eval', hyprlandPropertyExpression(property, value, client.address)], { timeout: 1000 },
-    )));
+      execFileAsync('hyprctl', ['eval', expression], { timeout: 1000 }),
+      execFileAsync('hyprctl', ['eval', pinExpression], { timeout: 1000 }),
+      ...[
+        ['decorate', '0'],
+        ['no_blur', '1'],
+        ['no_shadow', '1'],
+        ['no_dim', '1'],
+      ].map(([property, value]) => execFileAsync(
+        'hyprctl', ['eval', hyprlandPropertyExpression(property, value, client.address)], { timeout: 1000 },
+      )),
+    ]);
   } catch {
     // BrowserWindow positioning remains the fallback on unsupported compositor versions.
   }
@@ -226,10 +234,11 @@ function resizePet(level) {
 
 function showPet() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const bounds = petPlaced ? mainWindow.getBounds() : placeNearDesktopCorner();
+  const firstPlacement = !petPlaced;
+  const bounds = firstPlacement ? placeNearDesktopCorner() : mainWindow.getBounds();
   petPlaced = true;
   mainWindow.showInactive();
-  if (IS_HYPRLAND) setTimeout(() => { void placeHyprlandWindow(bounds); }, 150);
+  if (IS_HYPRLAND && firstPlacement) setTimeout(() => { void placeHyprlandWindow(bounds); }, 150);
 }
 
 function createWindow() {

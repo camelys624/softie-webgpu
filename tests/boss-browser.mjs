@@ -40,6 +40,91 @@ try {
   assert.ok((await page.locator('.boss-hammer').boundingBox()).width >= 160);
   await page.screenshot({ path: 'artifacts/boss-web.png' });
   await page.mouse.down();
+  const releaseTimer = setTimeout(() => { void page.mouse.up(); }, 150);
+  const trajectory = await page.evaluate(async point => {
+    const hammer = document.querySelector('.boss-hammer');
+    const image = document.querySelector('.hammer-swing img');
+    const swing = document.querySelector('.hammer-swing');
+    const head = { x: 64.89039282333903 / 176, y: 60.38250422232799 / 192 };
+    const start = performance.now();
+    const initial = hammer.getBoundingClientRect();
+    const pivot = { x: initial.left + initial.width * 0.68, y: initial.top + initial.height * 0.86 };
+    return new Promise(resolve => {
+      const samples = [];
+      const sample = now => {
+        const outer = hammer.getBoundingClientRect();
+        const imageRect = image.getBoundingClientRect();
+        const style = getComputedStyle(swing);
+        const transform = style.transform === 'none' ? new DOMMatrix() : new DOMMatrix(style.transform);
+        const width = hammer.offsetWidth, height = hammer.offsetHeight;
+        const origin = { x: width * 0.68, y: height * 0.86 };
+        const offset = { x: parseFloat(style.left) || 0, y: parseFloat(style.top) || 0 };
+        const dx = head.x * width - origin.x, dy = head.y * height - origin.y;
+        const impact = { x: outer.left + offset.x + origin.x + transform.a * dx + transform.c * dy + transform.e,
+          y: outer.top + offset.y + origin.y + transform.b * dx + transform.d * dy + transform.f };
+        samples.push({
+          elapsed: now - start,
+          left: hammer.style.left,
+          top: hammer.style.top,
+          radius: Math.hypot(imageRect.left + imageRect.width / 2 - pivot.x,
+            imageRect.top + imageRect.height / 2 - pivot.y),
+          angle: Math.atan2(imageRect.top + imageRect.height / 2 - pivot.y,
+            imageRect.left + imageRect.width / 2 - pivot.x),
+          headDistance: Math.hypot(impact.x - point.x, impact.y - point.y),
+          outer: { left: outer.left, top: outer.top, right: outer.right, bottom: outer.bottom },
+        });
+        if (now - start < 160) requestAnimationFrame(sample);
+        else {
+          const angles = [];
+          for (const sample of samples) {
+            let angle = sample.angle;
+            const previous = angles.at(-1);
+            if (previous !== undefined) {
+              while (angle - previous > Math.PI) angle -= Math.PI * 2;
+              while (angle - previous < -Math.PI) angle += Math.PI * 2;
+            }
+            angles.push(angle);
+          }
+          const radii = samples.map(sample => sample.radius);
+          const first = samples[0];
+          const impactSample = samples.reduce((best, sample) =>
+            Math.abs(sample.elapsed - 111.6) < Math.abs(best.elapsed - 111.6) ? sample : best, samples[0]);
+          resolve({
+            elapsed: now - start,
+            sampleCount: samples.length,
+            outerStationary: samples.every(sample => sample.left === first.left && sample.top === first.top),
+            radiusRange: Math.max(...radii) - Math.min(...radii),
+            angleSweep: Math.max(...angles) - Math.min(...angles),
+            impactDistance: impactSample.headDistance,
+          });
+        }
+      };
+      requestAnimationFrame(sample);
+    });
+  }, target);
+  clearTimeout(releaseTimer);
+  await page.mouse.up();
+  assert.ok(trajectory.sampleCount >= 3, 'the strike was sampled across animation frames');
+  assert.equal(trajectory.outerStationary, true, 'the fixed hammer container does not drift during a strike');
+  assert.ok(trajectory.radiusRange <= 3, `hammer radius changed by ${trajectory.radiusRange.toFixed(2)}px`);
+  assert.ok(trajectory.angleSweep >= 0.45, `hammer angle swept only ${trajectory.angleSweep.toFixed(2)}rad`);
+  assert.ok(trajectory.impactDistance <= 8, `hammer head missed pointer by ${trajectory.impactDistance.toFixed(2)}px`);
+  await page.waitForTimeout(Math.max(0, 220 - trajectory.elapsed));
+  const settled = await page.evaluate(() => {
+    const hammer = document.querySelector('.boss-hammer');
+    const swing = document.querySelector('.hammer-swing');
+    const rect = hammer.getBoundingClientRect();
+    const transform = getComputedStyle(swing).transform;
+    const matrix = transform === 'none' ? null : new DOMMatrix(transform);
+    const identity = !matrix || (Math.abs(matrix.a - 1) < 0.001 && Math.abs(matrix.b) < 0.001
+      && Math.abs(matrix.c) < 0.001 && Math.abs(matrix.d - 1) < 0.001
+      && Math.abs(matrix.e) < 0.001 && Math.abs(matrix.f) < 0.001);
+    return { identity, inside: rect.left >= 0 && rect.top >= 0
+      && rect.right <= innerWidth && rect.bottom <= innerHeight };
+  });
+  assert.equal(settled.identity, true, 'the swing returns to its identity transform');
+  assert.equal(settled.inside, true, 'the settled hammer remains inside the viewport');
+  await page.mouse.down();
   await page.waitForTimeout(650);
   const held = await page.evaluate(() => window.__SOFTIE__.getDiagnostics());
   assert.ok(held.boss.hits >= 3);
